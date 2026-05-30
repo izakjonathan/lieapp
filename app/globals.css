@@ -137,13 +137,13 @@ button {
   justify-content: space-between;
   gap: 12px;
   width: min(980px, 100%);
-  margin: 0 auto 12px;
-  padding: 12px 13px;
-  border-radius: 28px;
+  margin: 0 auto 10px;
+  padding: 10px 12px;
+  border-radius: 26px;
 }
 
 .brand-lockup,
-.hero-card > *,
+.scoreboard-card > *,
 .player-card > *,
 .activity > *,
 .reset-sheet-inner > * {
@@ -224,67 +224,46 @@ h1 {
   box-shadow: 0 0 18px rgba(255, 211, 138, .8);
 }
 
-.hero-card {
+.scoreboard-card {
   z-index: 5;
   display: grid;
-  grid-template-columns: minmax(230px, .78fr) 1.22fr;
-  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
   width: min(980px, 100%);
   margin: 0 auto 12px;
-  padding: 12px;
+  padding: 10px;
   border-radius: var(--radius-xl);
 }
 
-.hero-score {
-  min-height: 160px;
-  padding: 16px;
-  border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 27px;
-  background: rgba(0, 0, 0, .16);
-}
-
-.hero-score span,
-.hero-metrics span {
-  display: block;
-  margin-bottom: 8px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 770;
-  letter-spacing: .13em;
-  text-transform: uppercase;
-}
-
-.hero-score strong {
-  display: block;
-  font-size: clamp(86px, 20vw, 154px);
-  font-weight: 900;
-  line-height: .78;
-  letter-spacing: -.11em;
-}
-
-.hero-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.hero-metrics div {
+.scoreboard-card > div {
   min-width: 0;
-  min-height: 160px;
-  padding: 14px;
+  min-height: 92px;
+  padding: 15px 16px;
   border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 27px;
+  border-radius: 26px;
   background: rgba(0, 0, 0, .15);
 }
 
-.hero-metrics strong {
+.scoreboard-card span {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.scoreboard-card strong {
   display: block;
   max-width: 100%;
   overflow: hidden;
-  font-size: clamp(27px, 5.2vw, 54px);
-  line-height: .95;
-  letter-spacing: -.065em;
+  font-size: clamp(31px, 7.2vw, 64px);
+  font-weight: 900;
+  line-height: .9;
+  letter-spacing: -.08em;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .error-card {
@@ -307,7 +286,7 @@ h1 {
 }
 
 .player-card {
-  min-height: 268px;
+  min-height: 236px;
   padding: 14px;
   border-radius: var(--radius-xl);
   animation: riseIn 680ms var(--ease) both;
@@ -372,7 +351,7 @@ h1 {
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  margin: 34px 0 24px;
+  margin: 26px 0 20px;
 }
 
 .score-readout span {
@@ -397,7 +376,7 @@ h1 {
 
 .control-button {
   position: relative;
-  min-height: 64px;
+  min-height: 58px;
   border: 1px solid rgba(255, 255, 255, .15);
   border-radius: 22px;
   background: rgba(255, 255, 255, .1);
@@ -682,18 +661,6 @@ h1 {
 }
 
 @media (max-width: 920px) {
-  .hero-card {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-score {
-    min-height: 132px;
-  }
-
-  .hero-metrics div {
-    min-height: 112px;
-  }
-
   .player-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -709,81 +676,78 @@ h1 {
 
 @media (max-width: 640px) {
   .app-shell {
-    padding-left: 10px;
-    padding-right: 10px;
+    padding: calc(env(safe-area-inset-top) + 8px) 10px calc(env(safe-area-inset-bottom) + 86px);
   }
 
   .topbar {
     align-items: center;
-    padding: 11px;
-    border-radius: 26px;
+    margin-bottom: 9px;
+    padding: 9px 10px;
+    border-radius: 24px;
   }
 
   .brand-orb {
-    width: 34px;
-    height: 34px;
-    border-radius: 14px;
+    width: 31px;
+    height: 31px;
+    border-radius: 13px;
   }
 
   h1 {
-    font-size: clamp(26px, 8vw, 36px);
+    font-size: clamp(25px, 7.3vw, 34px);
   }
 
   .sync-pill {
-    min-height: 34px;
-    padding: 0 10px;
-    font-size: 11px;
+    min-height: 31px;
+    padding: 0 9px;
+    font-size: 10px;
   }
 
-  .hero-card {
-    padding: 10px;
-  }
-
-  .hero-score {
-    min-height: 126px;
-    padding: 14px;
-  }
-
-  .hero-score strong {
-    font-size: clamp(78px, 26vw, 122px);
-  }
-
-  .hero-metrics {
-    grid-template-columns: 1fr 1fr 1fr;
+  .scoreboard-card {
     gap: 8px;
+    margin-bottom: 10px;
+    padding: 9px;
+    border-radius: 27px;
   }
 
-  .hero-metrics div {
-    min-height: 86px;
-    padding: 11px;
-    border-radius: 23px;
+  .scoreboard-card > div {
+    min-height: 76px;
+    padding: 12px;
+    border-radius: 22px;
   }
 
-  .hero-metrics strong {
-    font-size: clamp(20px, 6vw, 34px);
+  .scoreboard-card span {
+    margin-bottom: 8px;
+    font-size: 10px;
+    letter-spacing: .13em;
+  }
+
+  .scoreboard-card strong {
+    font-size: clamp(25px, 7.3vw, 34px);
   }
 
   .player-grid {
-    gap: 10px;
+    gap: 8px;
+    margin-bottom: 0;
   }
 
   .player-card {
-    min-height: 228px;
-    padding: 12px;
-    border-radius: 28px;
+    min-height: 168px;
+    padding: 10px;
+    border-radius: 24px;
   }
 
   .player-index {
-    width: 32px;
-    height: 32px;
+    width: 29px;
+    height: 29px;
+    font-size: 11px;
   }
 
   .score-readout {
-    margin: 28px 0 20px;
+    margin: 16px 0 13px;
   }
 
   .score-readout span {
-    font-size: clamp(62px, 23vw, 96px);
+    font-size: clamp(48px, 18vw, 72px);
   }
 
   .score-readout small {
@@ -791,8 +755,47 @@ h1 {
   }
 
   .control-button {
-    min-height: 56px;
-    border-radius: 20px;
+    min-height: 44px;
+    border-radius: 18px;
+    font-size: 28px;
+  }
+
+
+  .player-card label span {
+    margin-bottom: 5px;
+    font-size: 9px;
+    letter-spacing: .13em;
+  }
+
+  .player-card input {
+    font-size: clamp(18px, 5vw, 22px);
+  }
+
+  .score-controls {
+    gap: 8px;
+  }
+
+  .activity {
+    display: none;
+  }
+
+  .bottom-controls {
+    padding: 0 10px calc(env(safe-area-inset-bottom) + 9px);
+  }
+
+  .bottom-controls::before {
+    height: 118px;
+  }
+
+  .bottom-controls-inner {
+    padding: 7px;
+    border-radius: 26px;
+  }
+
+  .bottom-controls-inner button {
+    min-height: 43px;
+    border-radius: 19px;
+    font-size: 12px;
   }
 
   .history-item {
@@ -805,47 +808,38 @@ h1 {
 }
 
 @media (max-width: 430px) {
-  .hero-metrics {
-    grid-template-columns: 1fr;
+  .scoreboard-card {
+    grid-template-columns: 1fr 1fr;
   }
 
-  .hero-metrics div {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    min-height: 58px;
+  .scoreboard-card > div {
+    min-height: 72px;
   }
 
-  .hero-metrics span {
-    margin: 0;
-  }
-
-  .hero-metrics strong {
-    max-width: 58%;
-    text-align: right;
+  .scoreboard-card strong {
+    font-size: clamp(23px, 7vw, 31px);
   }
 }
 
 @media (max-width: 390px) {
   .player-card {
-    min-height: 214px;
+    min-height: 158px;
   }
 
   .player-card input {
-    font-size: 19px;
+    font-size: 18px;
   }
 
   .score-readout span {
-    font-size: 60px;
+    font-size: 48px;
   }
 
   .control-button {
-    min-height: 50px;
+    min-height: 42px;
   }
 
   .bottom-controls-inner button {
-    min-height: 44px;
+    min-height: 42px;
     font-size: 12px;
   }
 }

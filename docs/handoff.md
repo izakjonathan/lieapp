@@ -1,5 +1,15 @@
 # Handoff — Scoreboard v4
 
+## v5 Notes
+
+The latest working version is v5. It keeps all v4 data/sync behavior, but changes the above-the-player summary to only show:
+
+- Most lies
+- Amount of lies
+
+The mobile layout is intentionally compressed so the scoreboard summary plus all four player cards with editable names and +/- controls fit inside an iPhone viewport above the floating bottom controls. The game log still exists in data/history for Undo, but is hidden on mobile.
+
+
 ## Stable base
 
 This v4 build is based on the latest working v3 app, preserving:

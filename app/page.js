@@ -263,16 +263,9 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="hero-card glass-panel">
-        <div className="hero-score">
-          <span>Total lies</span>
-          <strong>{stats.total}</strong>
-        </div>
-        <div className="hero-metrics">
-          <MetricCard label="Leader" value={stats.leaderName} />
-          <MetricCard label="Last change" value={stats.lastChange} />
-          <MetricCard label="Events" value={String(game?.history?.length || 0)} />
-        </div>
+      <section className="scoreboard-card glass-panel" aria-label="Scoreboard summary">
+        <MetricCard label="Most lies" value={stats.leaderName} />
+        <MetricCard label="Amount of lies" value={String(stats.leaderScore)} />
       </section>
 
       {bootError ? <div className="error-card glass-panel">{bootError}</div> : null}
@@ -453,6 +446,7 @@ function buildStats(game) {
   return {
     total,
     leaderName: leader && leader.score > 0 ? leader.name : "—",
+    leaderScore: leader && leader.score > 0 ? Number(leader.score || 0) : 0,
     lastChange: lastScore ? `${lastScore.playerName} ${lastScore.delta > 0 ? "+1" : "−1"}` : "—"
   };
 }
