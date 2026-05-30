@@ -7,7 +7,7 @@ A mobile-first shared scoring app for four people to keep score of how many lies
 - Four player cards
 - `+` and `−` controls for each player
 - Editable player names
-- Shareable room link: `?game=lies-xxxx`
+- Shareable game link in the browser URL
 - Recent activity log
 - Undo last score change
 - Reset scores while keeping names
@@ -51,7 +51,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_TABLE=lie_score_games
 ```
 
-The service role key stays server-side only. It is never exposed to the browser.
+The service role key stays server-side only. It is never exposed to the browser. See `docs/supabase-setup.md` for exact dashboard steps.
 
 ## Build
 
@@ -74,6 +74,7 @@ lib/
   storage.js                    Supabase/file/tmp/memory storage adapter
 docs/
   supabase.sql                  Optional hosted persistence table
+  supabase-setup.md             Exact Supabase/Vercel setup steps
 public/
   icon.svg                      App icon
 ```

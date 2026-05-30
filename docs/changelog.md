@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.2
+
+- Fixed player name editing so polling and save responses no longer reset the input while typing.
+- Paused background polling while a player name input is focused.
+- Replaced the visible room ID and explanatory room text with a simple `Scoreboard` hero title.
+- Added exact Supabase setup documentation in `docs/supabase-setup.md`.
+
+
 ## v1.0.1
 
 - Fixed Vercel crash: `ENOENT: no such file or directory, mkdir '/var/task/.data'`.

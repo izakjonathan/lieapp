@@ -218,6 +218,15 @@ h1 {
   line-height: 1.35;
 }
 
+.scoreboard-title {
+  display: flex;
+  align-items: center;
+}
+
+.scoreboard-title strong {
+  padding-top: 2px;
+}
+
 .hero-stats {
   display: grid;
   grid-template-columns: 1fr;

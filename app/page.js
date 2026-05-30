@@ -18,12 +18,24 @@ export default function Home() {
   const [gameId, setGameId] = useState("");
   const [game, setGame] = useState(null);
   const [draftNames, setDraftNames] = useState({});
-  const [status, setStatus] = useState("Opening ledger…");
+  const [status, setStatus] = useState("Opening scoreboard…");
   const [storeMode, setStoreMode] = useState("unknown");
   const [busyAction, setBusyAction] = useState("");
   const [bootError, setBootError] = useState("");
   const saveTimers = useRef({});
   const clientIdRef = useRef("");
+  const editingNameRef = useRef("");
+
+  const syncDraftNames = useCallback((nextGame, { preserveActive = true } = {}) => {
+    setDraftNames((current) => {
+      const nextNames = namesFromGame(nextGame);
+      const activePlayerId = editingNameRef.current;
+      if (preserveActive && activePlayerId && Object.prototype.hasOwnProperty.call(current, activePlayerId)) {
+        nextNames[activePlayerId] = current[activePlayerId];
+      }
+      return nextNames;
+    });
+  }, []);
 
   useEffect(() => {
     clientIdRef.current = getOrCreateClientId();
@@ -45,7 +57,7 @@ export default function Home() {
         if (!response.ok) throw new Error(payload?.error || "Could not load game.");
         setGame(payload.game);
         setStoreMode(payload.store || "unknown");
-        setDraftNames(namesFromGame(payload.game));
+        syncDraftNames(payload.game);
         setStatus(getStoreStatus(payload.store));
         setBootError("");
       } catch (error) {
@@ -53,7 +65,7 @@ export default function Home() {
         setStatus("Offline");
       }
     },
-    [gameId]
+    [gameId, syncDraftNames]
   );
 
   useEffect(() => {
@@ -63,7 +75,7 @@ export default function Home() {
   useEffect(() => {
     if (!gameId) return undefined;
     const timer = window.setInterval(() => {
-      if (!busyAction && document.visibilityState !== "hidden") loadGame({ silent: true });
+      if (!busyAction && !editingNameRef.current && document.visibilityState !== "hidden") loadGame({ silent: true });
     }, POLL_INTERVAL);
     return () => window.clearInterval(timer);
   }, [busyAction, gameId, loadGame]);
@@ -102,7 +114,7 @@ export default function Home() {
         if (!response.ok) throw new Error(payload?.error || "Could not save.");
         setGame(payload.game);
         setStoreMode(payload.store || "unknown");
-        setDraftNames(namesFromGame(payload.game));
+        syncDraftNames(payload.game);
         setStatus(getStoreStatus(payload.store));
       } catch (error) {
         setStatus("Save failed");
@@ -112,7 +124,7 @@ export default function Home() {
         setBusyAction("");
       }
     },
-    [gameId, loadGame]
+    [gameId, loadGame, syncDraftNames]
   );
 
   const adjustScore = useCallback(
@@ -122,6 +134,10 @@ export default function Home() {
     },
     [sendAction]
   );
+
+  const beginNameEdit = useCallback((playerId) => {
+    editingNameRef.current = playerId;
+  }, []);
 
   const setDraftName = useCallback((playerId, value) => {
     setDraftNames((current) => ({ ...current, [playerId]: value }));
@@ -137,10 +153,12 @@ export default function Home() {
   const commitName = useCallback(
     (playerId) => {
       window.clearTimeout(saveTimers.current[playerId]);
+      if (editingNameRef.current === playerId) editingNameRef.current = "";
       const clean = String(draftNames[playerId] || "").trim();
       if (clean) sendAction({ type: "renamePlayer", playerId, name: clean }, "Saving name…");
+      else syncDraftNames(game, { preserveActive: false });
     },
-    [draftNames, sendAction]
+    [draftNames, game, sendAction, syncDraftNames]
   );
 
   const copyShareLink = async () => {
@@ -156,10 +174,12 @@ export default function Home() {
   const startNewGame = () => {
     const nextId = makeGameId();
     setGame(null);
+    setDraftNames({});
+    editingNameRef.current = "";
     setGameId(nextId);
     persistGameId(nextId);
     replaceUrlGameId(nextId);
-    setStatus("New ledger created");
+    setStatus("New scoreboard created");
   };
 
   const resetScores = () => {
@@ -189,10 +209,8 @@ export default function Home() {
       </section>
 
       <section className="hero-card glass-panel">
-        <div className="hero-copy">
-          <span className="mini-label">Room</span>
-          <strong>{gameId || "creating…"}</strong>
-          <p>Track how many lies have been told. Share this room link to keep the same score from multiple devices.</p>
+        <div className="hero-copy scoreboard-title">
+          <strong>Scoreboard</strong>
         </div>
         <div className="hero-stats">
           <div>
@@ -216,6 +234,7 @@ export default function Home() {
                 <span>Player name</span>
                 <input
                   value={draftNames[player.id] ?? player.name}
+                  onFocus={() => beginNameEdit(player.id)}
                   onChange={(event) => setDraftName(player.id, event.target.value)}
                   onBlur={() => commitName(player.id)}
                   onKeyDown={(event) => {
