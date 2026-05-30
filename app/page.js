@@ -360,7 +360,7 @@ export default function Home() {
         <div className="brand-lockup">
           <span className="brand-orb" />
           <div>
-            <p className="eyebrow">{gameId?.startsWith("score-") ? "Shared game" : roomLabel}</p>
+            <p className="eyebrow">Shared scoreboard</p>
             <h1>Scoreboard</h1>
           </div>
         </div>
