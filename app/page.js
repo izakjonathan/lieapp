@@ -360,8 +360,8 @@ export default function Home() {
         <div className="brand-lockup">
           <span className="brand-orb" />
           <div>
-            <p className="eyebrow">Room</p>
-            <h1>{roomLabel}</h1>
+            <p className="eyebrow">{gameId?.startsWith("score-") ? "Shared game" : roomLabel}</p>
+            <h1>Scoreboard</h1>
           </div>
         </div>
         <div className="topbar-actions">
@@ -376,16 +376,16 @@ export default function Home() {
       </section>
 
       <section className="scoreboard-card glass-panel" aria-label="Biggest liar summary">
-        <div className="leader-banner">
+        <div className="leader-strip">
           <span className="leader-crown">🏆</span>
-          <div>
+          <div className="leader-copy">
             <span>Biggest Liar</span>
             <strong>{stats.leaderName}</strong>
           </div>
-        </div>
-        <div className="leader-count">
-          <span>Amount of lies</span>
-          <strong>{stats.leaderScore}</strong>
+          <div className="leader-total">
+            <span>Amount of lies</span>
+            <strong>{stats.leaderScore}</strong>
+          </div>
         </div>
       </section>
 
@@ -420,21 +420,31 @@ export default function Home() {
                 <span className="player-index">0{index + 1}</span>
               </div>
 
-              <div className="score-readout">
-                <span>{player.score}</span>
-                <small>{player.score === 1 ? "lie" : "lies"}</small>
-              </div>
-
               <div className="score-controls quick-score-controls" aria-label={`Score controls for ${player.name}`}>
-                {QUICK_DELTAS.map((delta) => (
+                {[-5, -1].map((delta) => (
                   <HoldButton
                     key={delta}
-                    className={`control-button ${delta < 0 ? "minus" : "plus"} ${Math.abs(delta) === 5 ? "wide" : ""}`}
+                    className={`control-button minus ${Math.abs(delta) === 5 ? "wide" : ""}`}
                     onTrigger={() => adjustScore(player.id, delta)}
-                    disabled={!game || Boolean(busyAction) || (delta < 0 && player.score <= 0)}
-                    ariaLabel={`${delta > 0 ? "Add" : "Deduct"} ${Math.abs(delta)} ${Math.abs(delta) === 1 ? "lie" : "lies"} ${delta > 0 ? "to" : "from"} ${player.name}`}
+                    disabled={!game || Boolean(busyAction) || player.score <= 0}
+                    ariaLabel={`Deduct ${Math.abs(delta)} ${Math.abs(delta) === 1 ? "lie" : "lies"} from ${player.name}`}
                   >
-                    {delta > 0 ? `+${delta}` : delta}
+                    {delta}
+                  </HoldButton>
+                ))}
+                <div className="score-pill" aria-label={`${player.name} has ${player.score} ${player.score === 1 ? "lie" : "lies"}`}>
+                  <strong>{player.score}</strong>
+                  <span>{player.score === 1 ? "lie" : "lies"}</span>
+                </div>
+                {[1, 5].map((delta) => (
+                  <HoldButton
+                    key={delta}
+                    className={`control-button plus ${Math.abs(delta) === 5 ? "wide" : ""}`}
+                    onTrigger={() => adjustScore(player.id, delta)}
+                    disabled={!game || Boolean(busyAction)}
+                    ariaLabel={`Add ${Math.abs(delta)} ${Math.abs(delta) === 1 ? "lie" : "lies"} to ${player.name}`}
+                  >
+                    +{delta}
                   </HoldButton>
                 ))}
               </div>
