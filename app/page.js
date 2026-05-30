@@ -5,8 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 const STORAGE_KEY = "scoreboard-active-game";
 const LEGACY_STORAGE_KEY = "lie-ledger-active-game";
 const CLIENT_KEY = "scoreboard-client-id";
-const THEME_KEY = "scoreboard-theme-v6";
-const POLL_INTERVAL = 1200;
+const THEME_KEY = "scoreboard-theme-v9";
+const POLL_INTERVAL = 800;
+const QUICK_DELTAS = [-5, -1, 1, 5];
 
 const STORE_STATUS = {
   supabase: "Saved · shared",
@@ -162,6 +163,7 @@ export default function Home() {
   }, []);
 
   const stats = useMemo(() => buildStats(game), [game]);
+  const roomLabel = useMemo(() => cleanRoomLabel(gameId), [gameId]);
   const visibleHistory = useMemo(() => {
     const history = game?.history || [];
     return history.slice(activityExpanded ? -30 : -8).reverse();
@@ -206,6 +208,7 @@ export default function Home() {
       setLastChangedPlayer(playerId);
       window.clearTimeout(changePulseTimer.current);
       changePulseTimer.current = window.setTimeout(() => setLastChangedPlayer(""), 340);
+      scoreHaptic(delta);
       sendAction({ type: "adjustScore", playerId, delta }, delta > 0 ? "Adding…" : "Deducting…");
     },
     [sendAction]
@@ -251,7 +254,7 @@ export default function Home() {
     const url = scoreboardUrlFor(gameId);
     try {
       if (navigator.share) {
-        await navigator.share({ title: "Scoreboard", text: "Open the shared scoreboard", url });
+        await navigator.share({ title: `Scoreboard · ${roomLabel}`, text: "Open the shared scoreboard", url });
         setStatus("Shared");
       } else {
         await navigator.clipboard.writeText(url);
@@ -357,8 +360,8 @@ export default function Home() {
         <div className="brand-lockup">
           <span className="brand-orb" />
           <div>
-            <p className="eyebrow">Shared</p>
-            <h1>Scoreboard</h1>
+            <p className="eyebrow">Room</p>
+            <h1>{roomLabel}</h1>
           </div>
         </div>
         <div className="topbar-actions">
@@ -372,9 +375,18 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="scoreboard-card glass-panel" aria-label="Scoreboard summary">
-        <MetricCard label="Most lies" value={stats.leaderName} />
-        <MetricCard label="Amount of lies" value={String(stats.leaderScore)} />
+      <section className="scoreboard-card glass-panel" aria-label="Biggest liar summary">
+        <div className="leader-banner">
+          <span className="leader-crown">🏆</span>
+          <div>
+            <span>Biggest Liar</span>
+            <strong>{stats.leaderName}</strong>
+          </div>
+        </div>
+        <div className="leader-count">
+          <span>Amount of lies</span>
+          <strong>{stats.leaderScore}</strong>
+        </div>
       </section>
 
       {bootError ? <div className="error-card glass-panel">{bootError}</div> : null}
@@ -413,25 +425,18 @@ export default function Home() {
                 <small>{player.score === 1 ? "lie" : "lies"}</small>
               </div>
 
-              <div className="score-controls" aria-label={`Score controls for ${player.name}`}>
-                <button
-                  className="control-button minus"
-                  type="button"
-                  onClick={() => adjustScore(player.id, -1)}
-                  disabled={!game || player.score <= 0 || Boolean(busyAction)}
-                  aria-label={`Deduct one lie from ${player.name}`}
-                >
-                  −
-                </button>
-                <button
-                  className="control-button plus"
-                  type="button"
-                  onClick={() => adjustScore(player.id, 1)}
-                  disabled={!game || Boolean(busyAction)}
-                  aria-label={`Add one lie to ${player.name}`}
-                >
-                  +
-                </button>
+              <div className="score-controls quick-score-controls" aria-label={`Score controls for ${player.name}`}>
+                {QUICK_DELTAS.map((delta) => (
+                  <HoldButton
+                    key={delta}
+                    className={`control-button ${delta < 0 ? "minus" : "plus"} ${Math.abs(delta) === 5 ? "wide" : ""}`}
+                    onTrigger={() => adjustScore(player.id, delta)}
+                    disabled={!game || Boolean(busyAction) || (delta < 0 && player.score <= 0)}
+                    ariaLabel={`${delta > 0 ? "Add" : "Deduct"} ${Math.abs(delta)} ${Math.abs(delta) === 1 ? "lie" : "lies"} ${delta > 0 ? "to" : "from"} ${player.name}`}
+                  >
+                    {delta > 0 ? `+${delta}` : delta}
+                  </HoldButton>
+                ))}
               </div>
             </article>
           );
@@ -489,7 +494,7 @@ export default function Home() {
             </div>
 
             <div className="menu-block">
-              <span className="menu-label">Room link</span>
+              <span className="menu-label">Room / shared scoreboard</span>
               <div className="room-row">
                 <input
                   value={roomDraft}
@@ -560,7 +565,7 @@ function HistoryItem({ item }) {
     return (
       <div className="history-item">
         <span>{item.delta > 0 ? "+" : "−"}</span>
-        <p><strong>{item.playerName}</strong> {item.delta > 0 ? "+1 lie" : "−1 lie"}</p>
+        <p><strong>{item.playerName}</strong> {formatDeltaText(item.delta)}</p>
         <time>{formatTime(item.at)}</time>
       </div>
     );
@@ -644,10 +649,11 @@ function skeletonPlayers() {
 
 function getInitialGameId() {
   const search = new URLSearchParams(window.location.search);
+  const fromRoomPath = roomIdFromPath(window.location.pathname);
   const fromUrl = cleanGameId(search.get("game"));
   const fromStorage = cleanGameId(window.localStorage.getItem(STORAGE_KEY));
   const fromLegacyStorage = cleanGameId(window.localStorage.getItem(LEGACY_STORAGE_KEY));
-  return fromUrl || fromStorage || fromLegacyStorage || makeGameId();
+  return fromRoomPath || fromUrl || fromStorage || fromLegacyStorage || makeGameId();
 }
 
 function persistGameId(gameId) {
@@ -656,14 +662,31 @@ function persistGameId(gameId) {
 
 function replaceUrlGameId(gameId) {
   const url = new URL(window.location.href);
-  url.searchParams.set("game", gameId);
+  url.pathname = `/room/${encodeURIComponent(gameId)}`;
+  url.search = "";
   window.history.replaceState(null, "", url.toString());
 }
 
 function scoreboardUrlFor(gameId) {
   const url = new URL(window.location.href);
-  url.searchParams.set("game", gameId);
+  url.pathname = `/room/${encodeURIComponent(gameId)}`;
+  url.search = "";
   return url.toString();
+}
+
+function roomIdFromPath(pathname) {
+  const match = String(pathname || "").match(/^\/room\/([^/?#]+)/);
+  return match ? cleanGameId(decodeURIComponent(match[1])) : "";
+}
+
+function cleanRoomLabel(gameId) {
+  const clean = cleanGameId(gameId) || "Scoreboard";
+  return clean
+    .replace(/^score-/, "")
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ") || "Scoreboard";
 }
 
 function cleanGameId(value) {
@@ -693,6 +716,56 @@ function getOrCreateClientId() {
 
 function pulseHaptic() {
   if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(12);
+}
+
+function scoreHaptic(delta) {
+  if (typeof navigator === "undefined" || !("vibrate" in navigator)) return;
+  if (Math.abs(delta) >= 5) navigator.vibrate([10, 20, 10]);
+  else navigator.vibrate(delta > 0 ? 12 : 8);
+}
+
+function formatDeltaText(delta) {
+  const value = Number(delta || 0);
+  const amount = Math.abs(value);
+  const word = amount === 1 ? "lie" : "lies";
+  return value > 0 ? `+${amount} ${word}` : `−${amount} ${word}`;
+}
+
+function HoldButton({ children, className, onTrigger, disabled, ariaLabel }) {
+  const timerRef = useRef(null);
+  const intervalRef = useRef(null);
+
+  const clearTimers = useCallback(() => {
+    window.clearTimeout(timerRef.current);
+    window.clearInterval(intervalRef.current);
+  }, []);
+
+  const startHold = useCallback(() => {
+    if (disabled) return;
+    clearTimers();
+    timerRef.current = window.setTimeout(() => {
+      onTrigger();
+      intervalRef.current = window.setInterval(onTrigger, 180);
+    }, 430);
+  }, [clearTimers, disabled, onTrigger]);
+
+  useEffect(() => clearTimers, [clearTimers]);
+
+  return (
+    <button
+      className={className}
+      type="button"
+      onClick={onTrigger}
+      onPointerDown={startHold}
+      onPointerUp={clearTimers}
+      onPointerCancel={clearTimers}
+      onPointerLeave={clearTimers}
+      disabled={disabled}
+      aria-label={ariaLabel}
+    >
+      {children}
+    </button>
+  );
 }
 
 function formatTime(value) {

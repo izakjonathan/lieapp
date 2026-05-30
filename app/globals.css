@@ -1033,6 +1033,98 @@ h1 {
   .theme-pill { display: none; }
 }
 
+
+/* v9 gameplay polish */
+.leader-banner,
+.leader-count {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.leader-crown {
+  display: grid !important;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin: 0 !important;
+  border-radius: 18px;
+  background: rgba(255, 220, 142, .16);
+  font-size: 25px !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.leader-count {
+  justify-content: space-between;
+}
+
+.leader-count strong {
+  text-align: right;
+}
+
+.quick-score-controls {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.quick-score-controls .control-button {
+  min-width: 0;
+  min-height: 48px;
+  border-radius: 18px;
+  font-size: 19px;
+  font-weight: 880;
+  letter-spacing: -.04em;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.quick-score-controls .control-button.wide {
+  font-size: 17px;
+}
+
+.player-card.leader::after {
+  content: "Biggest Liar";
+  position: absolute;
+  right: 13px;
+  bottom: 11px;
+  z-index: 2;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 225, 156, .28);
+  border-radius: 999px;
+  background: rgba(255, 211, 133, .12);
+  color: rgba(255, 230, 177, .86);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .leader-banner,
+  .leader-count { gap: 8px; }
+  .leader-crown {
+    width: 34px;
+    height: 34px;
+    border-radius: 14px;
+    font-size: 19px !important;
+  }
+  .quick-score-controls { gap: 5px; }
+  .quick-score-controls .control-button {
+    min-height: 34px;
+    border-radius: 13px;
+    font-size: 14px;
+  }
+  .quick-score-controls .control-button.wide { font-size: 13px; }
+  .player-card.leader::after { display: none; }
+}
+
+@media (max-width: 390px) {
+  .quick-score-controls .control-button { min-height: 32px; font-size: 13px; }
+  .quick-score-controls .control-button.wide { font-size: 12px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
