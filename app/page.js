@@ -360,7 +360,7 @@ export default function Home() {
         <div className="brand-lockup">
           <span className="brand-orb" />
           <div>
-            <p className="eyebrow">Shared scoreboard</p>
+            <p className="eyebrow">Scorekeeper</p>
             <h1>Scoreboard</h1>
           </div>
         </div>
