@@ -21,3 +21,10 @@
 - Replaced the oversized stats section with only `Most lies` and `Amount of lies`.
 - Tightened the mobile layout so the scoreboard + all 4 player cards fit better on iPhone.
 - Hid the game log on mobile while keeping history data for undo/reset.
+
+## v7 deployment fix
+
+- Removed local filesystem fallback from the server storage adapter.
+- Vercel/Supabase deployments now avoid Turbopack file-tracing warnings caused by `fs`, `path`, `os`, and dynamic `process.cwd()` storage paths.
+- When Supabase env vars are missing, the app falls back to temporary server memory instead of trying to write files.
+- Verified `npm run build` completes successfully after the change.
