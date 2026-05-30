@@ -14,7 +14,7 @@ A mobile-first shared scoring app for four people to keep score of how many lies
 - Haptic feedback on supported phones
 - PWA/standalone metadata
 - Server API persistence
-- Optional Supabase persistence for real multi-device Vercel deployment
+- Optional Supabase persistence for durable multi-device Vercel deployment
 
 ## Run locally
 
@@ -31,11 +31,15 @@ By default local/self-hosted mode saves games to:
 .data/lie-ledger-games.json
 ```
 
-This works across multiple devices on the same hosted Node server, but not as permanent storage on Vercel serverless deployments.
+## Vercel/serverless storage
 
-## True multi-device deployment on Vercel
+This version no longer tries to create `.data` inside `/var/task` on Vercel. Without Supabase it uses serverless-safe temporary storage at `/tmp/lie-ledger/games.json`, with an in-memory fallback if file storage is unavailable.
 
-For Vercel or other serverless hosting, use Supabase:
+That prevents the `ENOENT: no such file or directory, mkdir '/var/task/.data'` error, but temporary serverless storage is not durable. It can disappear after cold starts or redeploys.
+
+## Durable multi-device deployment on Vercel
+
+For reliable shared scoring across phones, add Supabase:
 
 1. Create a Supabase project.
 2. Run `docs/supabase.sql` in the Supabase SQL editor.
@@ -67,7 +71,7 @@ app/
   page.js                       Client app
 lib/
   game.js                       Game state and action logic
-  storage.js                    Supabase/file storage adapter
+  storage.js                    Supabase/file/tmp/memory storage adapter
 docs/
   supabase.sql                  Optional hosted persistence table
 public/

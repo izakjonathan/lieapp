@@ -6,6 +6,14 @@ const STORAGE_KEY = "lie-ledger-active-game";
 const CLIENT_KEY = "lie-ledger-client-id";
 const POLL_INTERVAL = 2200;
 
+const STORE_STATUS = {
+  supabase: "Saved · shared",
+  "server-tmp": "Saved · temporary",
+  "server-memory": "Saved · temporary",
+  "local-file": "Saved · local server",
+  unknown: "Saved"
+};
+
 export default function Home() {
   const [gameId, setGameId] = useState("");
   const [game, setGame] = useState(null);
@@ -38,7 +46,7 @@ export default function Home() {
         setGame(payload.game);
         setStoreMode(payload.store || "unknown");
         setDraftNames(namesFromGame(payload.game));
-        setStatus(payload.store === "supabase" ? "Saved · shared" : "Saved · local server");
+        setStatus(getStoreStatus(payload.store));
         setBootError("");
       } catch (error) {
         setBootError(error?.message || "Could not load the game.");
@@ -95,7 +103,7 @@ export default function Home() {
         setGame(payload.game);
         setStoreMode(payload.store || "unknown");
         setDraftNames(namesFromGame(payload.game));
-        setStatus(payload.store === "supabase" ? "Saved · shared" : "Saved · local server");
+        setStatus(getStoreStatus(payload.store));
       } catch (error) {
         setStatus("Save failed");
         setBootError(error?.message || "Could not save the latest change.");
@@ -274,6 +282,10 @@ export default function Home() {
       </nav>
     </main>
   );
+}
+
+function getStoreStatus(store) {
+  return STORE_STATUS[store] || STORE_STATUS.unknown;
 }
 
 function HistoryItem({ item }) {

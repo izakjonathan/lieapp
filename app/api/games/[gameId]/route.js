@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { applyGameAction, cleanGameId, createDefaultGame, sanitizeGame } from "@/lib/game";
 import { getStoreMode, readGameFromStore, writeGameToStore } from "@/lib/storage";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(_request, context) {
