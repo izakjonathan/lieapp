@@ -2,29 +2,61 @@
 
 A mobile-first shared scoreboard for four people to keep score of how many lies have been told. The UI is card-based, dark, glassy, and built in the same direction as the Rummy 500 scoring app: compact player cards, large score readouts, plus/minus controls, floating bottom actions, and fullscreen iPhone-safe layout.
 
-## v4 features
+## v6 features
 
-- Four player cards
+This version is based on the stable v5 build and adds the next app layer:
+
+- v5 layout preserved as the stable working base
+- Compact scoreboard summary:
+  - `Most lies`
+  - `Amount of lies`
+- Four player cards that fit on an iPhone screen with the scoreboard
 - `+` and `−` controls for each player
 - Editable player names without the typing reset bug
-- Clean visible app name: `Scoreboard`
-- No visible room ID/explainer text in the UI
-- Share button using native mobile share sheet when available
-- Shared scoreboard link in the browser URL
-- Game log with score, rename, reset and undo events
-- Expandable history list
+- Top liar highlight on the leading player card
+- Tap/bump animation when a score changes
+- Theme/background menu:
+  - Warm glass
+  - Midnight
+  - Dusty
+  - Photo mode using `public/bg.jpg`
+- Room menu:
+  - use a cleaner room name like `friday-night`
+  - copy the current room link
+  - open/create another room
+- Better share button using native mobile sharing when possible
 - Undo last score change
-- Reset sheet with:
+- Reset sheet:
   - scores only
   - names + scores
   - history only
-- New scoreboard button with a fresh share link
+- New scoreboard button inside the menu
+- Game log/history on larger screens, hidden on mobile to preserve the iPhone layout
 - Faster multi-device polling
 - Status pill: saved/shared/sync/offline
 - Haptic feedback on supported phones
-- PWA/standalone metadata
+- PWA install support:
+  - manifest
+  - app icons
+  - service worker
+  - iPhone Home Screen instructions fallback
 - Server API persistence
 - Optional Supabase persistence for durable multi-device Vercel deployment
+
+## Background image
+
+To use a custom background image:
+
+1. Add your image here:
+
+```txt
+public/bg.jpg
+```
+
+2. Open the app menu.
+3. Choose the `Photo` theme.
+
+If `public/bg.jpg` is missing, the app still works and falls back to the dark gradient behind the photo layer.
 
 ## Run locally
 
@@ -75,7 +107,7 @@ npm run start
 ```txt
 app/
   api/games/[gameId]/route.js   Shared game API
-  globals.css                   Liquid Glass UI system
+  globals.css                   Liquid Glass UI system + themes
   layout.js                     App metadata + viewport
   manifest.js                   PWA manifest
   page.js                       Client app
@@ -87,4 +119,7 @@ docs/
   supabase-setup.md             Exact Supabase/Vercel setup steps
 public/
   icon.svg                      App icon
+  apple-touch-icon.svg          iPhone home screen icon
+  maskable-icon.svg             PWA maskable icon
+  sw.js                         Service worker
 ```

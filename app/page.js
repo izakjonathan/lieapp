@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 const STORAGE_KEY = "scoreboard-active-game";
 const LEGACY_STORAGE_KEY = "lie-ledger-active-game";
 const CLIENT_KEY = "scoreboard-client-id";
-const POLL_INTERVAL = 1600;
+const THEME_KEY = "scoreboard-theme-v6";
+const POLL_INTERVAL = 1200;
 
 const STORE_STATUS = {
   supabase: "Saved · shared",
@@ -14,6 +15,13 @@ const STORE_STATUS = {
   "local-file": "Saved · local",
   unknown: "Saved"
 };
+
+const THEME_PRESETS = [
+  { id: "warm", label: "Warm glass", note: "brown · violet" },
+  { id: "midnight", label: "Midnight", note: "blue · black" },
+  { id: "dust", label: "Dusty", note: "muted · soft" },
+  { id: "photo", label: "Photo", note: "uses /public/bg.jpg" }
+];
 
 export default function Home() {
   const [gameId, setGameId] = useState("");
@@ -24,8 +32,16 @@ export default function Home() {
   const [busyAction, setBusyAction] = useState("");
   const [bootError, setBootError] = useState("");
   const [resetPanelOpen, setResetPanelOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [activityExpanded, setActivityExpanded] = useState(false);
+  const [theme, setTheme] = useState("warm");
+  const [roomDraft, setRoomDraft] = useState("");
+  const [roomError, setRoomError] = useState("");
+  const [installHelp, setInstallHelp] = useState("");
+  const [lastChangedPlayer, setLastChangedPlayer] = useState("");
   const saveTimers = useRef({});
+  const changePulseTimer = useRef(null);
+  const installPromptRef = useRef(null);
   const clientIdRef = useRef("");
   const editingNameRef = useRef("");
   const lastRevisionRef = useRef(0);
@@ -45,8 +61,36 @@ export default function Home() {
     clientIdRef.current = getOrCreateClientId();
     const id = getInitialGameId();
     setGameId(id);
+    setRoomDraft(id);
     persistGameId(id);
     replaceUrlGameId(id);
+
+    const savedTheme = window.localStorage.getItem(THEME_KEY);
+    if (THEME_PRESETS.some((preset) => preset.id === savedTheme)) setTheme(savedTheme);
+  }, []);
+
+  useEffect(() => {
+    if (gameId) setRoomDraft(gameId);
+  }, [gameId]);
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return undefined;
+    const registerWorker = () => {
+      navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    };
+    if (document.readyState === "complete") registerWorker();
+    else window.addEventListener("load", registerWorker, { once: true });
+    return () => window.removeEventListener("load", registerWorker);
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (event) => {
+      event.preventDefault();
+      installPromptRef.current = event;
+      setInstallHelp("");
+    };
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
   }, []);
 
   const applyLoadedGame = useCallback(
@@ -95,10 +139,13 @@ export default function Home() {
   useEffect(() => {
     if (!gameId) return undefined;
     const timer = window.setInterval(() => {
-      if (!busyAction && !editingNameRef.current && document.visibilityState !== "hidden") loadGame({ silent: true });
+      const panelOpen = resetPanelOpen || menuOpen;
+      if (!busyAction && !editingNameRef.current && !panelOpen && document.visibilityState !== "hidden") {
+        loadGame({ silent: true });
+      }
     }, POLL_INTERVAL);
     return () => window.clearInterval(timer);
-  }, [busyAction, gameId, loadGame]);
+  }, [busyAction, gameId, loadGame, menuOpen, resetPanelOpen]);
 
   useEffect(() => {
     const setViewportHeight = () => {
@@ -156,6 +203,9 @@ export default function Home() {
   const adjustScore = useCallback(
     (playerId, delta) => {
       setGame((current) => optimisticAdjust(current, playerId, delta));
+      setLastChangedPlayer(playerId);
+      window.clearTimeout(changePulseTimer.current);
+      changePulseTimer.current = window.setTimeout(() => setLastChangedPlayer(""), 340);
       sendAction({ type: "adjustScore", playerId, delta }, delta > 0 ? "Adding…" : "Deducting…");
     },
     [sendAction]
@@ -190,8 +240,15 @@ export default function Home() {
     [draftNames, game, sendAction, syncDraftNames]
   );
 
+  const chooseTheme = (nextTheme) => {
+    setTheme(nextTheme);
+    window.localStorage.setItem(THEME_KEY, nextTheme);
+    setStatus("Theme saved");
+    pulseHaptic();
+  };
+
   const shareScoreboard = async () => {
-    const url = window.location.href;
+    const url = scoreboardUrlFor(gameId);
     try {
       if (navigator.share) {
         await navigator.share({ title: "Scoreboard", text: "Open the shared scoreboard", url });
@@ -206,6 +263,51 @@ export default function Home() {
     }
   };
 
+  const copyRoomLink = async () => {
+    try {
+      await navigator.clipboard.writeText(scoreboardUrlFor(gameId));
+      setStatus("Link copied");
+      setRoomError("");
+      pulseHaptic();
+    } catch {
+      setRoomError("Could not copy the link.");
+    }
+  };
+
+  const useRoom = () => {
+    const nextId = cleanGameId(roomDraft);
+    if (!nextId) {
+      setRoomError("Use at least 3 letters, numbers or dashes.");
+      return;
+    }
+    if (nextId === gameId) {
+      setRoomError("");
+      setStatus("Already in this room");
+      return;
+    }
+    setRoomError("");
+    setGame(null);
+    setDraftNames({});
+    editingNameRef.current = "";
+    lastRevisionRef.current = 0;
+    setGameId(nextId);
+    persistGameId(nextId);
+    replaceUrlGameId(nextId);
+    setStatus("Opening room…");
+  };
+
+  const installApp = async () => {
+    if (installPromptRef.current) {
+      const promptEvent = installPromptRef.current;
+      installPromptRef.current = null;
+      promptEvent.prompt();
+      await promptEvent.userChoice.catch(() => null);
+      setInstallHelp("Install prompt closed.");
+      return;
+    }
+    setInstallHelp("On iPhone: tap Share in Safari, then Add to Home Screen.");
+  };
+
   const startNewGame = () => {
     const confirmed = window.confirm("Start a new scoreboard? This creates a separate share link.");
     if (!confirmed) return;
@@ -215,8 +317,10 @@ export default function Home() {
     editingNameRef.current = "";
     lastRevisionRef.current = 0;
     setGameId(nextId);
+    setRoomDraft(nextId);
     persistGameId(nextId);
     replaceUrlGameId(nextId);
+    setMenuOpen(false);
     setResetPanelOpen(false);
     setStatus("New scoreboard");
   };
@@ -243,7 +347,7 @@ export default function Home() {
   };
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" data-theme={theme}>
       <div className="aurora aurora-one" />
       <div className="aurora aurora-two" />
       <div className="aurora aurora-three" />
@@ -257,9 +361,14 @@ export default function Home() {
             <h1>Scoreboard</h1>
           </div>
         </div>
-        <div className="sync-pill" data-mode={storeMode}>
-          <span className="sync-dot" />
-          {status}
+        <div className="topbar-actions">
+          <button type="button" className="theme-pill" onClick={() => setMenuOpen(true)}>
+            Menu
+          </button>
+          <div className="sync-pill" data-mode={storeMode}>
+            <span className="sync-dot" />
+            {status}
+          </div>
         </div>
       </section>
 
@@ -271,54 +380,62 @@ export default function Home() {
       {bootError ? <div className="error-card glass-panel">{bootError}</div> : null}
 
       <section className="player-grid" aria-label="Players">
-        {(game?.players || skeletonPlayers()).map((player, index) => (
-          <article className="player-card glass-panel" key={player.id} style={{ "--delay": `${index * 60}ms` }}>
-            <div className="player-card-top">
-              <label>
-                <span>Player</span>
-                <input
-                  value={draftNames[player.id] ?? player.name}
-                  onFocus={() => beginNameEdit(player.id)}
-                  onChange={(event) => setDraftName(player.id, event.target.value)}
-                  onBlur={() => commitName(player.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") event.currentTarget.blur();
-                  }}
-                  maxLength={28}
-                  disabled={!game}
-                  aria-label={`Name for ${player.name}`}
-                />
-              </label>
-              <span className="player-index">0{index + 1}</span>
-            </div>
+        {(game?.players || skeletonPlayers()).map((player, index) => {
+          const isLeader = stats.leaderId === player.id && stats.leaderScore > 0;
+          const isChanging = lastChangedPlayer === player.id;
+          return (
+            <article
+              className={`player-card glass-panel${isLeader ? " leader" : ""}${isChanging ? " is-bumping" : ""}`}
+              key={player.id}
+              style={{ "--delay": `${index * 60}ms` }}
+            >
+              <div className="player-card-top">
+                <label>
+                  <span>{isLeader ? "Top liar" : "Player"}</span>
+                  <input
+                    value={draftNames[player.id] ?? player.name}
+                    onFocus={() => beginNameEdit(player.id)}
+                    onChange={(event) => setDraftName(player.id, event.target.value)}
+                    onBlur={() => commitName(player.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") event.currentTarget.blur();
+                    }}
+                    maxLength={28}
+                    disabled={!game}
+                    aria-label={`Name for ${player.name}`}
+                  />
+                </label>
+                <span className="player-index">0{index + 1}</span>
+              </div>
 
-            <div className="score-readout">
-              <span>{player.score}</span>
-              <small>{player.score === 1 ? "lie" : "lies"}</small>
-            </div>
+              <div className="score-readout">
+                <span>{player.score}</span>
+                <small>{player.score === 1 ? "lie" : "lies"}</small>
+              </div>
 
-            <div className="score-controls" aria-label={`Score controls for ${player.name}`}>
-              <button
-                className="control-button minus"
-                type="button"
-                onClick={() => adjustScore(player.id, -1)}
-                disabled={!game || player.score <= 0 || Boolean(busyAction)}
-                aria-label={`Deduct one lie from ${player.name}`}
-              >
-                −
-              </button>
-              <button
-                className="control-button plus"
-                type="button"
-                onClick={() => adjustScore(player.id, 1)}
-                disabled={!game || Boolean(busyAction)}
-                aria-label={`Add one lie to ${player.name}`}
-              >
-                +
-              </button>
-            </div>
-          </article>
-        ))}
+              <div className="score-controls" aria-label={`Score controls for ${player.name}`}>
+                <button
+                  className="control-button minus"
+                  type="button"
+                  onClick={() => adjustScore(player.id, -1)}
+                  disabled={!game || player.score <= 0 || Boolean(busyAction)}
+                  aria-label={`Deduct one lie from ${player.name}`}
+                >
+                  −
+                </button>
+                <button
+                  className="control-button plus"
+                  type="button"
+                  onClick={() => adjustScore(player.id, 1)}
+                  disabled={!game || Boolean(busyAction)}
+                  aria-label={`Add one lie to ${player.name}`}
+                >
+                  +
+                </button>
+              </div>
+            </article>
+          );
+        })}
       </section>
 
       <section className="activity glass-panel">
@@ -340,6 +457,64 @@ export default function Home() {
         </div>
       </section>
 
+      {menuOpen ? (
+        <section className="menu-sheet" aria-label="Scoreboard menu">
+          <div className="menu-sheet-inner glass-panel">
+            <div className="sheet-title">
+              <div>
+                <span>Scoreboard menu</span>
+                <strong>Theme, room and app setup</strong>
+              </div>
+              <button type="button" className="round-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">
+                ×
+              </button>
+            </div>
+
+            <div className="menu-block">
+              <span className="menu-label">Theme / background</span>
+              <div className="theme-grid">
+                {THEME_PRESETS.map((preset) => (
+                  <button
+                    type="button"
+                    className={theme === preset.id ? "selected" : ""}
+                    onClick={() => chooseTheme(preset.id)}
+                    key={preset.id}
+                  >
+                    <strong>{preset.label}</strong>
+                    <small>{preset.note}</small>
+                  </button>
+                ))}
+              </div>
+              <p className="menu-help">For your own photo background, add an image at <code>public/bg.jpg</code> and choose Photo.</p>
+            </div>
+
+            <div className="menu-block">
+              <span className="menu-label">Room link</span>
+              <div className="room-row">
+                <input
+                  value={roomDraft}
+                  onChange={(event) => setRoomDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") useRoom();
+                  }}
+                  placeholder="friday-night"
+                  aria-label="Room name"
+                />
+                <button type="button" onClick={useRoom}>Use</button>
+                <button type="button" onClick={copyRoomLink}>Copy</button>
+              </div>
+              {roomError ? <p className="menu-error">{roomError}</p> : null}
+            </div>
+
+            <div className="menu-actions">
+              <button type="button" onClick={installApp}>Install app</button>
+              <button type="button" onClick={startNewGame}>New scoreboard</button>
+            </div>
+            {installHelp ? <p className="menu-help strong">{installHelp}</p> : null}
+          </div>
+        </section>
+      ) : null}
+
       {resetPanelOpen ? (
         <section className="reset-sheet" aria-label="Reset options">
           <div className="reset-sheet-inner glass-panel">
@@ -360,7 +535,7 @@ export default function Home() {
           <button type="button" onClick={shareScoreboard}>Share</button>
           <button type="button" onClick={undoLast} disabled={!game?.history?.some((item) => item.kind === "score") || Boolean(busyAction)}>Undo</button>
           <button type="button" onClick={() => setResetPanelOpen(true)} disabled={!game || Boolean(busyAction)}>Reset</button>
-          <button type="button" onClick={startNewGame}>New</button>
+          <button type="button" onClick={() => setMenuOpen(true)}>Menu</button>
         </div>
       </nav>
     </main>
@@ -436,18 +611,15 @@ function HistoryItem({ item }) {
 
 function buildStats(game) {
   const players = game?.players || [];
-  const total = players.reduce((sum, player) => sum + Number(player.score || 0), 0);
   const leader = players.reduce((current, player) => {
-    if (!current || player.score > current.score) return player;
+    if (!current || Number(player.score || 0) > Number(current.score || 0)) return player;
     return current;
   }, null);
-  const lastScore = [...(game?.history || [])].reverse().find((item) => item.kind === "score");
 
   return {
-    total,
+    leaderId: leader && leader.score > 0 ? leader.id : "",
     leaderName: leader && leader.score > 0 ? leader.name : "—",
-    leaderScore: leader && leader.score > 0 ? Number(leader.score || 0) : 0,
-    lastChange: lastScore ? `${lastScore.playerName} ${lastScore.delta > 0 ? "+1" : "−1"}` : "—"
+    leaderScore: leader && leader.score > 0 ? Number(leader.score || 0) : 0
   };
 }
 
@@ -488,8 +660,20 @@ function replaceUrlGameId(gameId) {
   window.history.replaceState(null, "", url.toString());
 }
 
+function scoreboardUrlFor(gameId) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("game", gameId);
+  return url.toString();
+}
+
 function cleanGameId(value) {
-  const safe = String(value || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 64);
+  const safe = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9_-]/g, "")
+    .replace(/-+/g, "-")
+    .slice(0, 64);
   return safe.length >= 3 ? safe : "";
 }
 
