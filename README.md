@@ -1,16 +1,26 @@
-# Lie Ledger — Next.js scorekeeper
+# Scoreboard — Next.js shared scorekeeper
 
-A mobile-first shared scoring app for four people to keep score of how many lies have been told. The UI is card-based, dark, glassy, and built in the same direction as the Rummy 500 scoring app: compact cards, large score readouts, plus/minus controls, floating bottom actions and fullscreen iPhone-safe layout.
+A mobile-first shared scoreboard for four people to keep score of how many lies have been told. The UI is card-based, dark, glassy, and built in the same direction as the Rummy 500 scoring app: compact player cards, large score readouts, plus/minus controls, floating bottom actions, and fullscreen iPhone-safe layout.
 
-## Features
+## v4 features
 
 - Four player cards
 - `+` and `−` controls for each player
-- Editable player names
-- Shareable game link in the browser URL
-- Recent activity log
+- Editable player names without the typing reset bug
+- Clean visible app name: `Scoreboard`
+- No visible room ID/explainer text in the UI
+- Share button using native mobile share sheet when available
+- Shared scoreboard link in the browser URL
+- Game log with score, rename, reset and undo events
+- Expandable history list
 - Undo last score change
-- Reset scores while keeping names
+- Reset sheet with:
+  - scores only
+  - names + scores
+  - history only
+- New scoreboard button with a fresh share link
+- Faster multi-device polling
+- Status pill: saved/shared/sync/offline
 - Haptic feedback on supported phones
 - PWA/standalone metadata
 - Server API persistence
@@ -33,9 +43,9 @@ By default local/self-hosted mode saves games to:
 
 ## Vercel/serverless storage
 
-This version no longer tries to create `.data` inside `/var/task` on Vercel. Without Supabase it uses serverless-safe temporary storage at `/tmp/lie-ledger/games.json`, with an in-memory fallback if file storage is unavailable.
+Without Supabase, this app uses serverless-safe temporary storage at `/tmp/lie-ledger/games.json`, with an in-memory fallback if file storage is unavailable.
 
-That prevents the `ENOENT: no such file or directory, mkdir '/var/task/.data'` error, but temporary serverless storage is not durable. It can disappear after cold starts or redeploys.
+That prevents Vercel filesystem crashes, but temporary serverless storage is not durable. It can disappear after cold starts or redeploys.
 
 ## Durable multi-device deployment on Vercel
 
@@ -47,11 +57,11 @@ For reliable shared scoring across phones, add Supabase:
 
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-or-secret-key
 SUPABASE_TABLE=lie_score_games
 ```
 
-The service role key stays server-side only. It is never exposed to the browser. See `docs/supabase-setup.md` for exact dashboard steps.
+The secret/service role key stays server-side only. It is never exposed to the browser. See `docs/supabase-setup.md` for exact dashboard steps.
 
 ## Build
 

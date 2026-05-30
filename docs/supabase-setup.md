@@ -1,4 +1,4 @@
-# Supabase setup for Lie Ledger
+# Supabase setup for Scoreboard
 
 Use this when the app is deployed on Vercel and needs reliable shared scoring across multiple devices.
 

@@ -2,15 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-const STORAGE_KEY = "lie-ledger-active-game";
-const CLIENT_KEY = "lie-ledger-client-id";
-const POLL_INTERVAL = 2200;
+const STORAGE_KEY = "scoreboard-active-game";
+const LEGACY_STORAGE_KEY = "lie-ledger-active-game";
+const CLIENT_KEY = "scoreboard-client-id";
+const POLL_INTERVAL = 1600;
 
 const STORE_STATUS = {
   supabase: "Saved · shared",
   "server-tmp": "Saved · temporary",
   "server-memory": "Saved · temporary",
-  "local-file": "Saved · local server",
+  "local-file": "Saved · local",
   unknown: "Saved"
 };
 
@@ -18,13 +19,16 @@ export default function Home() {
   const [gameId, setGameId] = useState("");
   const [game, setGame] = useState(null);
   const [draftNames, setDraftNames] = useState({});
-  const [status, setStatus] = useState("Opening scoreboard…");
+  const [status, setStatus] = useState("Opening…");
   const [storeMode, setStoreMode] = useState("unknown");
   const [busyAction, setBusyAction] = useState("");
   const [bootError, setBootError] = useState("");
+  const [resetPanelOpen, setResetPanelOpen] = useState(false);
+  const [activityExpanded, setActivityExpanded] = useState(false);
   const saveTimers = useRef({});
   const clientIdRef = useRef("");
   const editingNameRef = useRef("");
+  const lastRevisionRef = useRef(0);
 
   const syncDraftNames = useCallback((nextGame, { preserveActive = true } = {}) => {
     setDraftNames((current) => {
@@ -45,6 +49,26 @@ export default function Home() {
     replaceUrlGameId(id);
   }, []);
 
+  const applyLoadedGame = useCallback(
+    (payload, { silent = false } = {}) => {
+      const incomingGame = payload.game;
+      const incomingRevision = Number(incomingGame?.revision || 0);
+      const currentRevision = Number(lastRevisionRef.current || 0);
+      if (silent && incomingRevision && incomingRevision === currentRevision) {
+        setStoreMode(payload.store || "unknown");
+        setStatus(getStoreStatus(payload.store));
+        return;
+      }
+      lastRevisionRef.current = incomingRevision;
+      setGame(incomingGame);
+      setStoreMode(payload.store || "unknown");
+      syncDraftNames(incomingGame);
+      setStatus(getStoreStatus(payload.store));
+      setBootError("");
+    },
+    [syncDraftNames]
+  );
+
   const loadGame = useCallback(
     async ({ silent = false } = {}) => {
       if (!gameId) return;
@@ -54,18 +78,14 @@ export default function Home() {
           cache: "no-store"
         });
         const payload = await response.json();
-        if (!response.ok) throw new Error(payload?.error || "Could not load game.");
-        setGame(payload.game);
-        setStoreMode(payload.store || "unknown");
-        syncDraftNames(payload.game);
-        setStatus(getStoreStatus(payload.store));
-        setBootError("");
+        if (!response.ok) throw new Error(payload?.error || "Could not load scoreboard.");
+        applyLoadedGame(payload, { silent });
       } catch (error) {
-        setBootError(error?.message || "Could not load the game.");
+        setBootError(error?.message || "Could not load the scoreboard.");
         setStatus("Offline");
       }
     },
-    [gameId, syncDraftNames]
+    [applyLoadedGame, gameId]
   );
 
   useEffect(() => {
@@ -95,6 +115,10 @@ export default function Home() {
   }, []);
 
   const stats = useMemo(() => buildStats(game), [game]);
+  const visibleHistory = useMemo(() => {
+    const history = game?.history || [];
+    return history.slice(activityExpanded ? -30 : -8).reverse();
+  }, [activityExpanded, game?.history]);
 
   const sendAction = useCallback(
     async (action, label = "Saving…") => {
@@ -112,10 +136,12 @@ export default function Home() {
         });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload?.error || "Could not save.");
+        lastRevisionRef.current = Number(payload.game?.revision || 0);
         setGame(payload.game);
         setStoreMode(payload.store || "unknown");
         syncDraftNames(payload.game);
         setStatus(getStoreStatus(payload.store));
+        setBootError("");
       } catch (error) {
         setStatus("Save failed");
         setBootError(error?.message || "Could not save the latest change.");
@@ -130,7 +156,7 @@ export default function Home() {
   const adjustScore = useCallback(
     (playerId, delta) => {
       setGame((current) => optimisticAdjust(current, playerId, delta));
-      sendAction({ type: "adjustScore", playerId, delta }, delta > 0 ? "Adding lie…" : "Deducting lie…");
+      sendAction({ type: "adjustScore", playerId, delta }, delta > 0 ? "Adding…" : "Deducting…");
     },
     [sendAction]
   );
@@ -139,16 +165,19 @@ export default function Home() {
     editingNameRef.current = playerId;
   }, []);
 
-  const setDraftName = useCallback((playerId, value) => {
-    setDraftNames((current) => ({ ...current, [playerId]: value }));
-    window.clearTimeout(saveTimers.current[playerId]);
-    saveTimers.current[playerId] = window.setTimeout(() => {
-      const clean = value.trim();
-      if (clean) {
-        sendAction({ type: "renamePlayer", playerId, name: clean }, "Saving name…");
-      }
-    }, 650);
-  }, [sendAction]);
+  const setDraftName = useCallback(
+    (playerId, value) => {
+      setDraftNames((current) => ({ ...current, [playerId]: value }));
+      window.clearTimeout(saveTimers.current[playerId]);
+      saveTimers.current[playerId] = window.setTimeout(() => {
+        const clean = value.trim();
+        if (clean) {
+          sendAction({ type: "renamePlayer", playerId, name: clean }, "Saving name…");
+        }
+      }, 700);
+    },
+    [sendAction]
+  );
 
   const commitName = useCallback(
     (playerId) => {
@@ -161,46 +190,72 @@ export default function Home() {
     [draftNames, game, sendAction, syncDraftNames]
   );
 
-  const copyShareLink = async () => {
+  const shareScoreboard = async () => {
+    const url = window.location.href;
     try {
-      await navigator.clipboard.writeText(window.location.href);
-      setStatus("Link copied");
+      if (navigator.share) {
+        await navigator.share({ title: "Scoreboard", text: "Open the shared scoreboard", url });
+        setStatus("Shared");
+      } else {
+        await navigator.clipboard.writeText(url);
+        setStatus("Link copied");
+      }
       pulseHaptic();
-    } catch {
-      setStatus("Copy failed");
+    } catch (error) {
+      if (error?.name !== "AbortError") setStatus("Share failed");
     }
   };
 
   const startNewGame = () => {
+    const confirmed = window.confirm("Start a new scoreboard? This creates a separate share link.");
+    if (!confirmed) return;
     const nextId = makeGameId();
     setGame(null);
     setDraftNames({});
     editingNameRef.current = "";
+    lastRevisionRef.current = 0;
     setGameId(nextId);
     persistGameId(nextId);
     replaceUrlGameId(nextId);
-    setStatus("New scoreboard created");
+    setResetPanelOpen(false);
+    setStatus("New scoreboard");
   };
 
   const resetScores = () => {
-    const confirmed = window.confirm("Reset all scores to zero? Player names stay the same.");
-    if (confirmed) sendAction({ type: "resetScores" }, "Resetting scores…");
+    setResetPanelOpen(false);
+    sendAction({ type: "resetScores" }, "Resetting scores…");
+  };
+
+  const resetBoard = () => {
+    const confirmed = window.confirm("Reset names and scores? This keeps the same share link.");
+    if (!confirmed) return;
+    setResetPanelOpen(false);
+    sendAction({ type: "resetBoard" }, "Resetting board…");
+  };
+
+  const clearHistory = () => {
+    setResetPanelOpen(false);
+    sendAction({ type: "clearHistory" }, "Clearing history…");
   };
 
   const undoLast = () => {
-    sendAction({ type: "undoLast" }, "Undoing last lie…");
+    sendAction({ type: "undoLast" }, "Undoing…");
   };
 
   return (
     <main className="app-shell">
       <div className="aurora aurora-one" />
       <div className="aurora aurora-two" />
+      <div className="aurora aurora-three" />
       <div className="noise" />
 
       <section className="topbar glass-panel">
-        <div>
-          <p className="eyebrow">Shared scorekeeper</p>
-          <h1>Lie Ledger</h1>
+        <div className="brand-lockup">
+          <span className="brand-orb" />
+          <div>
+            <p className="eyebrow">Shared</p>
+            <h1>Scoreboard</h1>
+          </div>
         </div>
         <div className="sync-pill" data-mode={storeMode}>
           <span className="sync-dot" />
@@ -209,18 +264,14 @@ export default function Home() {
       </section>
 
       <section className="hero-card glass-panel">
-        <div className="hero-copy scoreboard-title">
-          <strong>Scoreboard</strong>
+        <div className="hero-score">
+          <span>Total lies</span>
+          <strong>{stats.total}</strong>
         </div>
-        <div className="hero-stats">
-          <div>
-            <span>Total lies</span>
-            <strong>{stats.total}</strong>
-          </div>
-          <div>
-            <span>Most lies</span>
-            <strong>{stats.leaderName}</strong>
-          </div>
+        <div className="hero-metrics">
+          <MetricCard label="Leader" value={stats.leaderName} />
+          <MetricCard label="Last change" value={stats.lastChange} />
+          <MetricCard label="Events" value={String(game?.history?.length || 0)} />
         </div>
       </section>
 
@@ -231,7 +282,7 @@ export default function Home() {
           <article className="player-card glass-panel" key={player.id} style={{ "--delay": `${index * 60}ms` }}>
             <div className="player-card-top">
               <label>
-                <span>Player name</span>
+                <span>Player</span>
                 <input
                   value={draftNames[player.id] ?? player.name}
                   onFocus={() => beginNameEdit(player.id)}
@@ -279,27 +330,56 @@ export default function Home() {
 
       <section className="activity glass-panel">
         <div className="section-heading">
-          <span>Recent</span>
-          <strong>{game?.history?.length || 0} events</strong>
+          <div>
+            <span>Game log</span>
+            <strong>{game?.history?.length || 0} saved events</strong>
+          </div>
+          <button type="button" onClick={() => setActivityExpanded((value) => !value)}>
+            {activityExpanded ? "Less" : "More"}
+          </button>
         </div>
         <div className="history-list">
-          {game?.history?.length ? (
-            game.history.slice(-7).reverse().map((item) => <HistoryItem item={item} key={item.id} />)
+          {visibleHistory.length ? (
+            visibleHistory.map((item) => <HistoryItem item={item} key={item.id} />)
           ) : (
-            <p className="empty-history">No lies logged yet. Suspiciously clean.</p>
+            <p className="empty-history">No lies logged yet.</p>
           )}
         </div>
       </section>
 
-      <nav className="bottom-controls" aria-label="Game actions">
+      {resetPanelOpen ? (
+        <section className="reset-sheet" aria-label="Reset options">
+          <div className="reset-sheet-inner glass-panel">
+            <div>
+              <span>Reset options</span>
+              <strong>What should be cleared?</strong>
+            </div>
+            <button type="button" onClick={resetScores} disabled={!game || Boolean(busyAction)}>Scores only</button>
+            <button type="button" onClick={resetBoard} disabled={!game || Boolean(busyAction)}>Names + scores</button>
+            <button type="button" onClick={clearHistory} disabled={!game?.history?.length || Boolean(busyAction)}>History only</button>
+            <button type="button" className="ghost" onClick={() => setResetPanelOpen(false)}>Cancel</button>
+          </div>
+        </section>
+      ) : null}
+
+      <nav className="bottom-controls" aria-label="Scoreboard actions">
         <div className="bottom-controls-inner glass-panel">
-          <button type="button" onClick={copyShareLink}>Share</button>
+          <button type="button" onClick={shareScoreboard}>Share</button>
           <button type="button" onClick={undoLast} disabled={!game?.history?.some((item) => item.kind === "score") || Boolean(busyAction)}>Undo</button>
-          <button type="button" onClick={resetScores} disabled={!game || Boolean(busyAction)}>Reset</button>
+          <button type="button" onClick={() => setResetPanelOpen(true)} disabled={!game || Boolean(busyAction)}>Reset</button>
           <button type="button" onClick={startNewGame}>New</button>
         </div>
       </nav>
     </main>
+  );
+}
+
+function MetricCard({ label, value }) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
 }
 
@@ -312,7 +392,7 @@ function HistoryItem({ item }) {
     return (
       <div className="history-item">
         <span>{item.delta > 0 ? "+" : "−"}</span>
-        <p><strong>{item.playerName}</strong> {item.delta > 0 ? "told a lie" : "had a lie deducted"}</p>
+        <p><strong>{item.playerName}</strong> {item.delta > 0 ? "+1 lie" : "−1 lie"}</p>
         <time>{formatTime(item.at)}</time>
       </div>
     );
@@ -322,17 +402,27 @@ function HistoryItem({ item }) {
     return (
       <div className="history-item muted">
         <span>↻</span>
-        <p><strong>{item.previousName}</strong> became <strong>{item.nextName}</strong></p>
+        <p><strong>{item.previousName}</strong> changed to <strong>{item.nextName}</strong></p>
         <time>{formatTime(item.at)}</time>
       </div>
     );
   }
 
-  if (item.kind === "reset") {
+  if (item.kind === "resetScores") {
     return (
       <div className="history-item muted">
         <span>0</span>
-        <p>Scores reset to zero</p>
+        <p>Scores reset</p>
+        <time>{formatTime(item.at)}</time>
+      </div>
+    );
+  }
+
+  if (item.kind === "resetBoard") {
+    return (
+      <div className="history-item muted">
+        <span>↺</span>
+        <p>Names and scores reset</p>
         <time>{formatTime(item.at)}</time>
       </div>
     );
@@ -358,10 +448,12 @@ function buildStats(game) {
     if (!current || player.score > current.score) return player;
     return current;
   }, null);
+  const lastScore = [...(game?.history || [])].reverse().find((item) => item.kind === "score");
 
   return {
     total,
-    leaderName: leader && leader.score > 0 ? leader.name : "—"
+    leaderName: leader && leader.score > 0 ? leader.name : "—",
+    lastChange: lastScore ? `${lastScore.playerName} ${lastScore.delta > 0 ? "+1" : "−1"}` : "—"
   };
 }
 
@@ -388,7 +480,8 @@ function getInitialGameId() {
   const search = new URLSearchParams(window.location.search);
   const fromUrl = cleanGameId(search.get("game"));
   const fromStorage = cleanGameId(window.localStorage.getItem(STORAGE_KEY));
-  return fromUrl || fromStorage || makeGameId();
+  const fromLegacyStorage = cleanGameId(window.localStorage.getItem(LEGACY_STORAGE_KEY));
+  return fromUrl || fromStorage || fromLegacyStorage || makeGameId();
 }
 
 function persistGameId(gameId) {
@@ -409,7 +502,7 @@ function cleanGameId(value) {
 function makeGameId() {
   const left = Math.random().toString(36).slice(2, 6);
   const right = Date.now().toString(36).slice(-5);
-  return `lies-${left}-${right}`;
+  return `score-${left}-${right}`;
 }
 
 function getOrCreateClientId() {

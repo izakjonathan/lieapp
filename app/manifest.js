@@ -1,8 +1,8 @@
 export default function manifest() {
   return {
-    name: "Lie Ledger",
-    short_name: "Lies",
-    description: "Shared four-player lie scorekeeper.",
+    name: "Scoreboard",
+    short_name: "Scoreboard",
+    description: "Shared four-player lie scoreboard.",
     start_url: "/",
     display: "standalone",
     background_color: "#050506",

@@ -1,6 +1,6 @@
 {
-  "name": "lie-ledger-nextjs",
-  "version": "1.0.2",
+  "name": "scoreboard-lies-nextjs",
+  "version": "1.0.3",
   "private": true,
   "scripts": {
     "dev": "next dev",

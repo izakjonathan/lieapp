@@ -10,12 +10,12 @@ export const viewport = {
 };
 
 export const metadata = {
-  title: "Lie Ledger",
-  description: "A shared scorekeeper for tracking lies across four players.",
+  title: "Scoreboard",
+  description: "A shared four-player scoreboard for tracking lies.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Lie Ledger",
+    title: "Scoreboard",
     statusBarStyle: "black-translucent"
   },
   icons: {

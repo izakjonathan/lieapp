@@ -1,27 +1,30 @@
 # Changelog
 
-## v1.0.2
+## v4
 
-- Fixed player name editing so polling and save responses no longer reset the input while typing.
-- Paused background polling while a player name input is focused.
-- Replaced the visible room ID and explanatory room text with a simple `Scoreboard` hero title.
-- Added exact Supabase setup documentation in `docs/supabase-setup.md`.
+- Renamed the visible app experience to `Scoreboard`.
+- Kept the room ID hidden from the UI while preserving shareable room links.
+- Added native share support with clipboard fallback.
+- Added a stronger game log with expandable history.
+- Added reset options: scores only, names + scores, and history only.
+- Added `resetBoard` and `clearHistory` server actions.
+- Increased saved history from 80 to 120 events.
+- Added faster multi-device polling.
+- Improved status handling so unchanged background polls do not disturb the UI.
+- Preserved the v3 fix that prevents player names from resetting while typing.
+- Refined the Rummy-style Liquid Glass UI: stronger hero score, polished cards, bottom controls, and reset sheet.
 
+## v3
 
-## v1.0.1
+- Fixed player names resetting while typing.
+- Removed visible room ID/explanatory share text.
+- Added Supabase setup docs.
 
-- Fixed Vercel crash: `ENOENT: no such file or directory, mkdir '/var/task/.data'`.
-- Added serverless-safe `/tmp/lie-ledger/games.json` fallback when no Supabase env vars are configured.
-- Added in-memory fallback if file storage is unavailable.
-- Forced the game API route to Node.js runtime.
-- Updated UI status labels so non-Supabase storage shows as temporary/local instead of shared.
+## v2
 
-## v1.0.0
+- Fixed Vercel serverless storage crash by moving fallback storage to `/tmp`.
+- Added in-memory fallback if file storage fails.
 
-- Initial Next.js Lie Ledger build.
-- Four player score cards.
-- Editable player names.
-- Plus/minus scoring controls.
-- Shared room URL.
-- API-backed persistence.
-- Optional Supabase persistence.
+## v1
+
+- Initial four-player Next.js scorekeeper.
