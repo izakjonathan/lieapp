@@ -40,6 +40,7 @@ export default function Home() {
   const [roomError, setRoomError] = useState("");
   const [installHelp, setInstallHelp] = useState("");
   const [lastChangedPlayer, setLastChangedPlayer] = useState("");
+  const [lastChange, setLastChange] = useState({ playerId: "", delta: 0, stamp: 0 });
   const saveTimers = useRef({});
   const changePulseTimer = useRef(null);
   const installPromptRef = useRef(null);
@@ -206,8 +207,12 @@ export default function Home() {
     (playerId, delta) => {
       setGame((current) => optimisticAdjust(current, playerId, delta));
       setLastChangedPlayer(playerId);
+      setLastChange({ playerId, delta, stamp: Date.now() });
       window.clearTimeout(changePulseTimer.current);
-      changePulseTimer.current = window.setTimeout(() => setLastChangedPlayer(""), 340);
+      changePulseTimer.current = window.setTimeout(() => {
+        setLastChangedPlayer("");
+        setLastChange({ playerId: "", delta: 0, stamp: 0 });
+      }, 420);
       scoreHaptic(delta);
       sendAction({ type: "adjustScore", playerId, delta }, delta > 0 ? "Adding…" : "Deducting…");
     },
@@ -366,11 +371,12 @@ export default function Home() {
       </section>
 
       <section className="scoreboard-card hero-scoreboard glass-panel" aria-label="Biggest liar summary">
-        <div className="hero-copy">
-          <span>Biggest Liar</span>
+        <div className="hero-copy" key={`leader-${stats.leaderId || "none"}-${stats.leaderScore}`}>
+          <span>Scoreboard</span>
           <strong>{stats.leaderName}</strong>
+          <em>{stats.leaderId ? "Current Leader" : "No leader yet"}</em>
         </div>
-        <div className="hero-total">
+        <div className="hero-total" key={`leader-score-${stats.leaderId || "none"}-${stats.leaderScore}`}>
           <strong>{stats.leaderScore}</strong>
           <span>{stats.leaderScore === 1 ? "Lie" : "Lies"}</span>
         </div>
@@ -382,9 +388,10 @@ export default function Home() {
         {(game?.players || skeletonPlayers()).map((player, index) => {
           const isLeader = stats.leaderId === player.id && stats.leaderScore > 0;
           const isChanging = lastChangedPlayer === player.id;
+          const changeDirection = isChanging && lastChange.delta < 0 ? " score-down" : isChanging && lastChange.delta > 0 ? " score-up" : "";
           return (
             <article
-              className={`player-card glass-panel${isLeader ? " leader" : ""}${isChanging ? " is-bumping" : ""}`}
+              className={`player-card glass-panel${isLeader ? " leader" : ""}${isChanging ? " is-bumping" : ""}${changeDirection}`}
               key={player.id}
               style={{ "--delay": `${index * 60}ms` }}
             >
@@ -406,7 +413,7 @@ export default function Home() {
                 {isLeader ? <span className="leader-badge" aria-label="Current biggest liar">🏆</span> : null}
               </div>
 
-              <div className="player-score" aria-label={`${player.name} has ${player.score} ${player.score === 1 ? "lie" : "lies"}`}>
+              <div className="player-score" key={`${player.id}-${player.score}-${lastChange.stamp}`} aria-label={`${player.name} has ${player.score} ${player.score === 1 ? "lie" : "lies"}`}>
                 <strong>{player.score}</strong>
               </div>
 
@@ -743,7 +750,7 @@ function HoldButton({ children, className, onTrigger, disabled, ariaLabel }) {
 
   return (
     <button
-      className={className}
+      className={`${className || ""} pressable-button`}
       type="button"
       onClick={onTrigger}
       onPointerDown={startHold}
