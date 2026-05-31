@@ -7,7 +7,7 @@ const LEGACY_STORAGE_KEY = "lie-ledger-active-game";
 const CLIENT_KEY = "scoreboard-client-id";
 const THEME_KEY = "scoreboard-theme-v9";
 const POLL_INTERVAL = 800;
-const QUICK_DELTAS = [-5, -1, 1, 5];
+const QUICK_DELTAS = [-1, 1];
 
 const STORE_STATUS = {
   supabase: "Saved · shared",
@@ -356,36 +356,27 @@ export default function Home() {
       <div className="aurora aurora-three" />
       <div className="noise" />
 
-      <section className="topbar glass-panel">
+      <section className="topbar topbar-simple glass-panel">
         <div className="brand-lockup">
-          <span className="brand-orb" />
           <div>
-            <p className="eyebrow">Scorekeeper</p>
             <h1>Scoreboard</h1>
           </div>
         </div>
-        <div className="topbar-actions">
-          <button type="button" className="theme-pill" onClick={() => setMenuOpen(true)}>
-            Menu
-          </button>
-          <div className="sync-pill" data-mode={storeMode}>
-            <span className="sync-dot" />
-            {status}
-          </div>
+        <div className="sync-pill" data-mode={storeMode} aria-label={`Sync status: ${status}`}>
+          <span className="sync-dot" />
+          {status}
         </div>
       </section>
 
-      <section className="scoreboard-card glass-panel" aria-label="Biggest liar summary">
-        <div className="leader-strip">
-          <span className="leader-crown">🏆</span>
-          <div className="leader-copy">
-            <span>Biggest Liar</span>
-            <strong>{stats.leaderName}</strong>
-          </div>
-          <div className="leader-total">
-            <span>Amount of lies</span>
-            <strong>{stats.leaderScore}</strong>
-          </div>
+      <section className="scoreboard-card hero-scoreboard glass-panel" aria-label="Biggest liar summary">
+        <div className="hero-crown" aria-hidden="true">🏆</div>
+        <div className="hero-copy">
+          <span>Biggest Liar</span>
+          <strong>{stats.leaderName}</strong>
+        </div>
+        <div className="hero-total">
+          <strong>{stats.leaderScore}</strong>
+          <span>{stats.leaderScore === 1 ? "Lie" : "Lies"}</span>
         </div>
       </section>
 
@@ -403,7 +394,6 @@ export default function Home() {
             >
               <div className="player-card-top">
                 <label>
-                  <span>{isLeader ? "Top liar" : "Player"}</span>
                   <input
                     value={draftNames[player.id] ?? player.name}
                     onFocus={() => beginNameEdit(player.id)}
@@ -417,36 +407,31 @@ export default function Home() {
                     aria-label={`Name for ${player.name}`}
                   />
                 </label>
-                <span className="player-index">0{index + 1}</span>
+                {isLeader ? <span className="leader-badge" aria-label="Current biggest liar">🏆</span> : null}
+              </div>
+
+              <div className="player-score" aria-label={`${player.name} has ${player.score} ${player.score === 1 ? "lie" : "lies"}`}>
+                <strong>{player.score}</strong>
+                <span>{player.score === 1 ? "Lie" : "Lies"}</span>
               </div>
 
               <div className="score-controls quick-score-controls" aria-label={`Score controls for ${player.name}`}>
-                {[-5, -1].map((delta) => (
-                  <HoldButton
-                    key={delta}
-                    className={`control-button minus ${Math.abs(delta) === 5 ? "wide" : ""}`}
-                    onTrigger={() => adjustScore(player.id, delta)}
-                    disabled={!game || Boolean(busyAction) || player.score <= 0}
-                    ariaLabel={`Deduct ${Math.abs(delta)} ${Math.abs(delta) === 1 ? "lie" : "lies"} from ${player.name}`}
-                  >
-                    {delta}
-                  </HoldButton>
-                ))}
-                <div className="score-pill" aria-label={`${player.name} has ${player.score} ${player.score === 1 ? "lie" : "lies"}`}>
-                  <strong>{player.score}</strong>
-                  <span>{player.score === 1 ? "lie" : "lies"}</span>
-                </div>
-                {[1, 5].map((delta) => (
-                  <HoldButton
-                    key={delta}
-                    className={`control-button plus ${Math.abs(delta) === 5 ? "wide" : ""}`}
-                    onTrigger={() => adjustScore(player.id, delta)}
-                    disabled={!game || Boolean(busyAction)}
-                    ariaLabel={`Add ${Math.abs(delta)} ${Math.abs(delta) === 1 ? "lie" : "lies"} to ${player.name}`}
-                  >
-                    +{delta}
-                  </HoldButton>
-                ))}
+                <HoldButton
+                  className="control-button minus"
+                  onTrigger={() => adjustScore(player.id, -1)}
+                  disabled={!game || Boolean(busyAction) || player.score <= 0}
+                  ariaLabel={`Deduct one lie from ${player.name}`}
+                >
+                  −1
+                </HoldButton>
+                <HoldButton
+                  className="control-button plus"
+                  onTrigger={() => adjustScore(player.id, 1)}
+                  disabled={!game || Boolean(busyAction)}
+                  ariaLabel={`Add one lie to ${player.name}`}
+                >
+                  +1
+                </HoldButton>
               </div>
             </article>
           );
