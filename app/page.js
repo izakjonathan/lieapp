@@ -382,10 +382,10 @@ export default function Home() {
         <div className="v23-hero-main">
           <span className="v23-kicker">Scoreboard</span>
           <strong className="v23-leader-name">{stats.leaderName}</strong>
-          <span className="v23-leader-state">{stats.leaderId ? "Current leader" : "No leader yet"}</span>
+          
         </div>
         <div className="v23-hero-score" aria-label={`${stats.leaderScore} ${stats.leaderScore === 1 ? "lie" : "lies"}`}>
-          {stats.leaderId ? <span className="v23-trophy" aria-hidden="true">🏆</span> : null}
+          
           <strong>{stats.leaderScore}</strong>
         </div>
       </section>

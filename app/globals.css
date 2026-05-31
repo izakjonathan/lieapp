@@ -2838,3 +2838,29 @@ html.keyboard-open .bottom-controls {
 .v23-player-card {
   flex-shrink: 0;
 }
+
+
+/* v25 hierarchy rebuild */
+.v23-hero-main{
+  text-align:center!important;
+}
+.v23-leader-name{
+  font-size:clamp(2.4rem,7vw,4rem)!important;
+}
+.v23-hero-score strong{
+  font-size:clamp(4rem,12vw,6rem)!important;
+}
+.v23-player-card{
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+  align-items:center!important;
+  text-align:center!important;
+}
+.v23-player-name-wrap{
+  width:100%!important;
+  text-align:center!important;
+}
+.v23-player-name{
+  text-align:center!important;
+}
