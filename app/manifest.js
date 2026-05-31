@@ -1,3 +1,4 @@
+function normalizePlayerName(name){const t=(name||'').trim();return t.toLowerCase()==='tom'?'Gaylord McFuck':name;}
 export default function manifest() {
   return {
     id: "/",

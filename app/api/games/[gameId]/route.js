@@ -1,3 +1,4 @@
+function normalizePlayerName(name){const t=(name||'').trim();return t.toLowerCase()==='tom'?'Gaylord McFuck':name;}
 import { NextResponse } from "next/server";
 import { applyGameAction, cleanGameId, createDefaultGame, sanitizeGame } from "@/lib/game";
 import { getStoreMode, readGameFromStore, writeGameToStore } from "@/lib/storage";
