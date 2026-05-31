@@ -10,9 +10,9 @@ const POLL_INTERVAL = 800;
 const QUICK_DELTAS = [-1, 1];
 
 const STORE_STATUS = {
-  supabase: "Saved · shared",
-  "server-tmp": "Saved · temporary",
-  "server-memory": "Saved · temporary",
+  supabase: "Shared",
+  "server-tmp": "Temp",
+  "server-memory": "Temp",
   "local-file": "Saved · local",
   unknown: "Saved"
 };
@@ -362,14 +362,10 @@ export default function Home() {
             <h1>Scoreboard</h1>
           </div>
         </div>
-        <div className="sync-pill" data-mode={storeMode} aria-label={`Sync status: ${status}`}>
-          <span className="sync-dot" />
-          {status}
-        </div>
+
       </section>
 
       <section className="scoreboard-card hero-scoreboard glass-panel" aria-label="Biggest liar summary">
-        <div className="hero-crown" aria-hidden="true">🏆</div>
         <div className="hero-copy">
           <span>Biggest Liar</span>
           <strong>{stats.leaderName}</strong>
@@ -412,7 +408,6 @@ export default function Home() {
 
               <div className="player-score" aria-label={`${player.name} has ${player.score} ${player.score === 1 ? "lie" : "lies"}`}>
                 <strong>{player.score}</strong>
-                <span>{player.score === 1 ? "Lie" : "Lies"}</span>
               </div>
 
               <div className="score-controls quick-score-controls" aria-label={`Score controls for ${player.name}`}>
