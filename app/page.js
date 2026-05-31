@@ -82,398 +82,58 @@ export default function Home() {
     };
     if (document.readyState === "complete") registerWorker();
     else window.addEventListener("load", registerWorker, { once: true });
-    return () => window.removeEventListener("load", registerWorker);
-  }, []);
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (event) => {
-      event.preventDefault();
-      installPromptRef.current = event;
-      setInstallHelp("");
-    };
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-  }, []);
-
-  const applyLoadedGame = useCallback(
-    (payload, { silent = false } = {}) => {
-      const incomingGame = payload.game;
-      const incomingRevision = Number(incomingGame?.revision || 0);
-      const currentRevision = Number(lastRevisionRef.current || 0);
-      if (silent && incomingRevision && incomingRevision === currentRevision) {
-        setStoreMode(payload.store || "unknown");
-        setStatus(getStoreStatus(payload.store));
-        return;
-      }
-      lastRevisionRef.current = incomingRevision;
-      setGame(incomingGame);
-      setStoreMode(payload.store || "unknown");
-      syncDraftNames(incomingGame);
-      setStatus(getStoreStatus(payload.store));
-      setBootError("");
-    },
-    [syncDraftNames]
-  );
-
-  const loadGame = useCallback(
-    async ({ silent = false } = {}) => {
-      if (!gameId) return;
-      try {
-        if (!silent) setStatus("Syncing…");
-        const response = await fetch(`/api/games/${encodeURIComponent(gameId)}`, {
-          cache: "no-store"
-        });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload?.error || "Could not load scoreboard.");
-        applyLoadedGame(payload, { silent });
-      } catch (error) {
-        setBootError(error?.message || "Could not load the scoreboard.");
-        setStatus("Offline");
-      }
-    },
-    [applyLoadedGame, gameId]
-  );
-
-  useEffect(() => {
-    loadGame();
-  }, [loadGame]);
-
-  useEffect(() => {
-    if (!gameId) return undefined;
-    const timer = window.setInterval(() => {
-      const panelOpen = resetPanelOpen || menuOpen;
-      if (!busyAction && !editingNameRef.current && !panelOpen && document.visibilityState !== "hidden") {
-        loadGame({ silent: true });
-      }
-    }, POLL_INTERVAL);
-    return () => window.clearInterval(timer);
-  }, [busyAction, gameId, loadGame, menuOpen, resetPanelOpen]);
-
-  useEffect(() => {
-    const setViewportHeight = () => {
-      const height = window.visualViewport?.height || window.innerHeight;
-      document.documentElement.style.setProperty("--app-height", `${height}px`);
-    };
-    setViewportHeight();
-    window.addEventListener("resize", setViewportHeight, { passive: true });
-    window.visualViewport?.addEventListener("resize", setViewportHeight, { passive: true });
-    return () => {
-      window.removeEventListener("resize", setViewportHeight);
-      window.visualViewport?.removeEventListener("resize", setViewportHeight);
-    };
-  }, []);
-
-  const stats = useMemo(() => buildStats(game), [game]);
-  const roomLabel = useMemo(() => cleanRoomLabel(gameId), [gameId]);
-  const visibleHistory = useMemo(() => {
-    const history = game?.history || [];
-    return history.slice(activityExpanded ? -30 : -8).reverse();
-  }, [activityExpanded, game?.history]);
-
-  const sendAction = useCallback(
-    async (action, label = "Saving…") => {
-      if (!gameId) return;
-      setBusyAction(action.type || "action");
-      setStatus(label);
-      pulseHaptic();
-      try {
-        const response = await fetch(`/api/games/${encodeURIComponent(gameId)}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ ...action, clientId: clientIdRef.current })
-        });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload?.error || "Could not save.");
-        lastRevisionRef.current = Number(payload.game?.revision || 0);
-        setGame(payload.game);
-        setStoreMode(payload.store || "unknown");
-        syncDraftNames(payload.game);
-        setStatus(getStoreStatus(payload.store));
-        setBootError("");
-      } catch (error) {
-        setStatus("Save failed");
-        setBootError(error?.message || "Could not save the latest change.");
-        await loadGame({ silent: true });
-      } finally {
-        setBusyAction("");
-      }
-    },
-    [gameId, loadGame, syncDraftNames]
-  );
-
-  const adjustScore = useCallback(
-    (playerId, delta) => {
-      setGame((current) => optimisticAdjust(current, playerId, delta));
-      setLastChangedPlayer(playerId);
-      setLastChange({ playerId, delta, stamp: Date.now() });
-      window.clearTimeout(changePulseTimer.current);
-      changePulseTimer.current = window.setTimeout(() => {
-        setLastChangedPlayer("");
-        setLastChange({ playerId: "", delta: 0, stamp: 0 });
-      }, 420);
-      scoreHaptic(delta);
-      sendAction({ type: "adjustScore", playerId, delta }, delta > 0 ? "Adding…" : "Deducting…");
-    },
-    [sendAction]
-  );
-
-  const beginNameEdit = useCallback((playerId) => {
-    editingNameRef.current = playerId;
-  }, []);
-
-  const setDraftName = useCallback(
-    (playerId, value) => {
-      setDraftNames((current) => ({ ...current, [playerId]: value }));
-      window.clearTimeout(saveTimers.current[playerId]);
-      saveTimers.current[playerId] = window.setTimeout(() => {
-        const clean = value.trim();
-        if (clean) {
-          sendAction({ type: "renamePlayer", playerId, name: clean }, "Saving name…");
-        }
-      }, 700);
-    },
-    [sendAction]
-  );
-
-  const commitName = useCallback(
-    (playerId) => {
-      window.clearTimeout(saveTimers.current[playerId]);
-      if (editingNameRef.current === playerId) editingNameRef.current = "";
-      const clean = String(draftNames[playerId] || "").trim();
-      if (clean) sendAction({ type: "renamePlayer", playerId, name: clean }, "Saving name…");
-      else syncDraftNames(game, { preserveActive: false });
-    },
-    [draftNames, game, sendAction, syncDraftNames]
-  );
-
-  const chooseTheme = (nextTheme) => {
-    setTheme(nextTheme);
-    window.localStorage.setItem(THEME_KEY, nextTheme);
-    setStatus("Theme saved");
-    pulseHaptic();
-  };
-
-  const shareScoreboard = async () => {
-    const url = scoreboardUrlFor(gameId);
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: `Scoreboard · ${roomLabel}`, text: "Open the shared scoreboard", url });
-        setStatus("Shared");
-      } else {
-        await navigator.clipboard.writeText(url);
-        setStatus("Link copied");
-      }
-      pulseHaptic();
-    } catch (error) {
-      if (error?.name !== "AbortError") setStatus("Share failed");
-    }
-  };
-
-  const copyRoomLink = async () => {
-    try {
-      await navigator.clipboard.writeText(scoreboardUrlFor(gameId));
-      setStatus("Link copied");
-      setRoomError("");
-      pulseHaptic();
-    } catch {
-      setRoomError("Could not copy the link.");
-    }
-  };
-
-  const useRoom = () => {
-    const nextId = cleanGameId(roomDraft);
-    if (!nextId) {
-      setRoomError("Use at least 3 letters, numbers or dashes.");
-      return;
-    }
-    if (nextId === gameId) {
-      setRoomError("");
-      setStatus("Already in this room");
-      return;
-    }
-    setRoomError("");
-    setGame(null);
-    setDraftNames({});
-    editingNameRef.current = "";
-    lastRevisionRef.current = 0;
-    setGameId(nextId);
-    persistGameId(nextId);
-    replaceUrlGameId(nextId);
-    setStatus("Opening room…");
-  };
-
-  const installApp = async () => {
-    if (installPromptRef.current) {
-      const promptEvent = installPromptRef.current;
-      installPromptRef.current = null;
-      promptEvent.prompt();
-      await promptEvent.userChoice.catch(() => null);
-      setInstallHelp("Install prompt closed.");
-      return;
-    }
-    setInstallHelp("On iPhone: tap Share in Safari, then Add to Home Screen.");
-  };
-
-  const startNewGame = () => {
-    const confirmed = window.confirm("Start a new scoreboard? This creates a separate share link.");
-    if (!confirmed) return;
-    const nextId = makeGameId();
-    setGame(null);
-    setDraftNames({});
-    editingNameRef.current = "";
-    lastRevisionRef.current = 0;
-    setGameId(nextId);
-    setRoomDraft(nextId);
-    persistGameId(nextId);
-    replaceUrlGameId(nextId);
-    setMenuOpen(false);
-    setResetPanelOpen(false);
-    setStatus("New scoreboard");
-  };
-
-  const resetScores = () => {
-    setResetPanelOpen(false);
-    sendAction({ type: "resetScores" }, "Resetting scores…");
-  };
-
-  const resetBoard = () => {
-    const confirmed = window.confirm("Reset names and scores? This keeps the same share link.");
-    if (!confirmed) return;
-    setResetPanelOpen(false);
-    sendAction({ type: "resetBoard" }, "Resetting board…");
-  };
-
-  const clearHistory = () => {
-    setResetPanelOpen(false);
-    sendAction({ type: "clearHistory" }, "Clearing history…");
-  };
-
-  const undoLast = () => {
-    sendAction({ type: "undoLast" }, "Undoing…");
-  };
-
-  return (
+    return (
     <main className="app-shell" data-theme={theme}>
       <div className="aurora aurora-one" />
       <div className="aurora aurora-two" />
       <div className="aurora aurora-three" />
       <div className="noise" />
 
-      <section className="topbar topbar-simple glass-panel">
-        <div className="brand-lockup">
-          <div>
-            <h1>Scoreboard</h1>
-          </div>
-        </div>
+      <header className="app-header glass-panel">
+        <h1>Scoreboard</h1>
+      </header>
 
-      </section>
-
-      <section className="scoreboard-card hero-scoreboard glass-panel" aria-label="Biggest liar summary">
-        <div className="hero-copy" key={`leader-${stats.leaderId || "none"}-${stats.leaderScore}`}>
-          <span>Scoreboard</span>
-          <strong>{stats.leaderName}</strong>
-          <em>{stats.leaderId ? "Current Leader" : "No leader yet"}</em>
-        </div>
-        <div className="hero-total" key={`leader-score-${stats.leaderId || "none"}-${stats.leaderScore}`}>
-          <strong>{stats.leaderScore}</strong>
-          <span>{stats.leaderScore === 1 ? "Lie" : "Lies"}</span>
-        </div>
-      </section>
+      <HeroScoreboard
+        leaderName={stats.leaderName}
+        leaderScore={stats.leaderScore}
+        hasLeader={Boolean(stats.leaderId)}
+      />
 
       {bootError ? <div className="error-card glass-panel">{bootError}</div> : null}
 
-      <section className="player-grid" aria-label="Players">
-        {(game?.players || skeletonPlayers()).map((player, index) => {
-          const isLeader = stats.leaderId === player.id && stats.leaderScore > 0;
-          const isChanging = lastChangedPlayer === player.id;
-          const changeDirection = isChanging && lastChange.delta < 0 ? " score-down" : isChanging && lastChange.delta > 0 ? " score-up" : "";
-          return (
-            <article
-              className={`player-card glass-panel${isLeader ? " leader" : ""}${isChanging ? " is-bumping" : ""}${changeDirection}`}
-              key={player.id}
-              style={{ "--delay": `${index * 60}ms` }}
-            >
-              <div className="player-card-top">
-                <label>
-                  <input
-                    value={draftNames[player.id] ?? player.name}
-                    onFocus={() => beginNameEdit(player.id)}
-                    onChange={(event) => setDraftName(player.id, event.target.value)}
-                    onBlur={() => commitName(player.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") event.currentTarget.blur();
-                    }}
-                    maxLength={28}
-                    disabled={!game}
-                    aria-label={`Name for ${player.name}`}
-                  />
-                </label>
-                {isLeader ? <span className="leader-badge" aria-label="Current biggest liar">🏆</span> : null}
-              </div>
-
-              <div className="player-score" key={`${player.id}-${player.score}-${lastChange.stamp}`} aria-label={`${player.name} has ${player.score} ${player.score === 1 ? "lie" : "lies"}`}>
-                <strong>{player.score}</strong>
-              </div>
-
-              <div className="score-controls quick-score-controls" aria-label={`Score controls for ${player.name}`}>
-                <HoldButton
-                  className="control-button minus"
-                  onTrigger={() => adjustScore(player.id, -1)}
-                  disabled={!game || Boolean(busyAction) || player.score <= 0}
-                  ariaLabel={`Deduct one lie from ${player.name}`}
-                >
-                  −1
-                </HoldButton>
-                <HoldButton
-                  className="control-button plus"
-                  onTrigger={() => adjustScore(player.id, 1)}
-                  disabled={!game || Boolean(busyAction)}
-                  ariaLabel={`Add one lie to ${player.name}`}
-                >
-                  +1
-                </HoldButton>
-              </div>
-            </article>
-          );
-        })}
-      </section>
-
-      <section className="activity glass-panel">
-        <div className="section-heading">
-          <div>
-            <span>Game log</span>
-            <strong>{game?.history?.length || 0} saved events</strong>
-          </div>
-          <button type="button" onClick={() => setActivityExpanded((value) => !value)}>
-            {activityExpanded ? "Less" : "More"}
-          </button>
-        </div>
-        <div className="history-list">
-          {visibleHistory.length ? (
-            visibleHistory.map((item) => <HistoryItem item={item} key={item.id} />)
-          ) : (
-            <p className="empty-history">No lies logged yet.</p>
-          )}
-        </div>
+      <section className="player-stack" aria-label="Players">
+        {(game?.players || skeletonPlayers()).map((player, index) => (
+          <PlayerCard
+            key={player.id}
+            player={player}
+            index={index}
+            draftName={draftNames[player.id] ?? player.name}
+            isLeader={stats.leaderId === player.id && stats.leaderScore > 0}
+            isChanging={lastChangedPlayer === player.id}
+            changeDirection={lastChangedPlayer === player.id ? lastChange.delta : 0}
+            lastChangeStamp={lastChange.stamp}
+            disabled={!game || Boolean(busyAction)}
+            onBeginNameEdit={beginNameEdit}
+            onDraftName={setDraftName}
+            onCommitName={commitName}
+            onAdjust={adjustScore}
+          />
+        ))}
       </section>
 
       {menuOpen ? (
-        <section className="menu-sheet" aria-label="Scoreboard menu">
-          <div className="menu-sheet-inner glass-panel">
+        <section className="sheet-overlay" aria-label="Scoreboard menu">
+          <div className="sheet-panel glass-panel">
             <div className="sheet-title">
               <div>
-                <span>Scoreboard menu</span>
+                <span>Menu</span>
                 <strong>Theme, room and app setup</strong>
               </div>
-              <button type="button" className="round-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">
-                ×
-              </button>
+              <button type="button" className="round-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">×</button>
             </div>
 
             <div className="menu-block">
-              <span className="menu-label">Theme / background</span>
+              <span className="menu-label">Theme</span>
               <div className="theme-grid">
                 {THEME_PRESETS.map((preset) => (
                   <button
@@ -491,7 +151,7 @@ export default function Home() {
             </div>
 
             <div className="menu-block">
-              <span className="menu-label">Room / shared scoreboard</span>
+              <span className="menu-label">Room</span>
               <div className="room-row">
                 <input
                   value={roomDraft}
@@ -518,16 +178,20 @@ export default function Home() {
       ) : null}
 
       {resetPanelOpen ? (
-        <section className="reset-sheet" aria-label="Reset options">
-          <div className="reset-sheet-inner glass-panel">
-            <div>
-              <span>Reset options</span>
-              <strong>What should be cleared?</strong>
+        <section className="sheet-overlay" aria-label="Reset options">
+          <div className="sheet-panel reset-panel glass-panel">
+            <div className="sheet-title">
+              <div>
+                <span>Reset</span>
+                <strong>Choose what to clear</strong>
+              </div>
+              <button type="button" className="round-close" onClick={() => setResetPanelOpen(false)} aria-label="Close reset options">×</button>
             </div>
-            <button type="button" onClick={resetScores} disabled={!game || Boolean(busyAction)}>Scores only</button>
-            <button type="button" onClick={resetBoard} disabled={!game || Boolean(busyAction)}>Names + scores</button>
-            <button type="button" onClick={clearHistory} disabled={!game?.history?.length || Boolean(busyAction)}>History only</button>
-            <button type="button" className="ghost" onClick={() => setResetPanelOpen(false)}>Cancel</button>
+            <div className="reset-actions">
+              <button type="button" onClick={resetScores} disabled={!game || Boolean(busyAction)}>Scores only</button>
+              <button type="button" onClick={resetBoard} disabled={!game || Boolean(busyAction)}>Names + scores</button>
+              <button type="button" onClick={clearHistory} disabled={!game?.history?.length || Boolean(busyAction)}>History only</button>
+            </div>
           </div>
         </section>
       ) : null}
@@ -544,12 +208,77 @@ export default function Home() {
   );
 }
 
-function MetricCard({ label, value }) {
+function HeroScoreboard({ leaderName, leaderScore, hasLeader }) {
   return (
-    <div>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
+    <section className={`hero-scoreboard glass-panel${hasLeader ? " has-leader" : ""}`} aria-label="Scoreboard leader">
+      <span className="hero-kicker">Scoreboard</span>
+      <strong className="hero-leader">{hasLeader ? leaderName : "No leader"}</strong>
+      <div className="hero-score-row" aria-label={`${leaderScore} ${leaderScore === 1 ? "lie" : "lies"}`}>
+        <span className="hero-trophy" aria-hidden="true">🏆</span>
+        <strong>{leaderScore}</strong>
+      </div>
+    </section>
+  );
+}
+
+function PlayerCard({
+  player,
+  index,
+  draftName,
+  isLeader,
+  isChanging,
+  changeDirection,
+  lastChangeStamp,
+  disabled,
+  onBeginNameEdit,
+  onDraftName,
+  onCommitName,
+  onAdjust
+}) {
+  return (
+    <article
+      className={`player-card glass-panel${isLeader ? " leader" : ""}${isChanging ? " is-bumping" : ""}${changeDirection < 0 ? " score-down" : changeDirection > 0 ? " score-up" : ""}`}
+      style={{ "--delay": `${index * 45}ms` }}
+    >
+      <div className="player-name-row">
+        <input
+          value={draftName}
+          onFocus={() => onBeginNameEdit(player.id)}
+          onChange={(event) => onDraftName(player.id, event.target.value)}
+          onBlur={() => onCommitName(player.id)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+          }}
+          maxLength={28}
+          disabled={disabled && !draftName}
+          aria-label={`Name for ${player.name}`}
+        />
+        {isLeader ? <span className="leader-badge" aria-label="Current biggest liar">🏆</span> : null}
+      </div>
+
+      <strong className="player-score" key={`${player.id}-${player.score}-${lastChangeStamp}`} aria-label={`${player.name} has ${player.score} ${player.score === 1 ? "lie" : "lies"}`}>
+        {player.score}
+      </strong>
+
+      <div className="score-controls" aria-label={`Score controls for ${player.name}`}>
+        <HoldButton
+          className="control-button minus"
+          onTrigger={() => onAdjust(player.id, -1)}
+          disabled={disabled || player.score <= 0}
+          ariaLabel={`Deduct one lie from ${player.name}`}
+        >
+          −1
+        </HoldButton>
+        <HoldButton
+          className="control-button plus"
+          onTrigger={() => onAdjust(player.id, 1)}
+          disabled={disabled}
+          ariaLabel={`Add one lie to ${player.name}`}
+        >
+          +1
+        </HoldButton>
+      </div>
+    </article>
   );
 }
 
