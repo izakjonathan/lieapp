@@ -150,16 +150,29 @@ export default function Home() {
   }, [busyAction, gameId, loadGame, menuOpen, resetPanelOpen]);
 
   useEffect(() => {
+    // iOS Safari shrinks visualViewport when the keyboard opens.
+    // If we bind the app height to that smaller value, the player grid collapses
+    // into thin rows while editing names. Keep the largest measured viewport
+    // height for layout, and expose keyboard state for small CSS adjustments.
+    let stableHeight = Math.max(window.innerHeight || 0, window.visualViewport?.height || 0);
+
     const setViewportHeight = () => {
-      const height = window.visualViewport?.height || window.innerHeight;
-      document.documentElement.style.setProperty("--app-height", `${height}px`);
+      const visualHeight = window.visualViewport?.height || window.innerHeight || stableHeight;
+      const innerHeight = window.innerHeight || visualHeight;
+      stableHeight = Math.max(stableHeight, visualHeight, innerHeight);
+      const keyboardOpen = visualHeight < stableHeight - 120;
+
+      document.documentElement.style.setProperty("--app-height", `${stableHeight}px`);
+      document.documentElement.classList.toggle("keyboard-open", keyboardOpen);
     };
+
     setViewportHeight();
     window.addEventListener("resize", setViewportHeight, { passive: true });
     window.visualViewport?.addEventListener("resize", setViewportHeight, { passive: true });
     return () => {
       window.removeEventListener("resize", setViewportHeight);
       window.visualViewport?.removeEventListener("resize", setViewportHeight);
+      document.documentElement.classList.remove("keyboard-open");
     };
   }, []);
 
@@ -394,7 +407,12 @@ export default function Home() {
                 <input
                   className="v23-player-name"
                   value={draftNames[player.id] ?? player.name}
-                  onFocus={() => beginNameEdit(player.id)}
+                  onFocus={(event) => {
+                    beginNameEdit(player.id);
+                    window.setTimeout(() => {
+                      event.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
+                    }, 80);
+                  }}
                   onChange={(event) => setDraftName(player.id, event.target.value)}
                   onBlur={() => commitName(player.id)}
                   onKeyDown={(event) => {

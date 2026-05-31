@@ -2791,3 +2791,50 @@ h1 {
 @media (min-width: 720px) {
   .app-shell.v23-shell { max-width: 760px; }
 }
+
+/* v24 keyboard-safe layout fix
+   iPhone Safari shrinks visualViewport when the keyboard opens. The app now keeps
+   a stable --app-height in JS, and these rules prevent flex/grid children from
+   being squeezed into thin bars while a player name input is focused. */
+html.keyboard-open,
+html.keyboard-open body {
+  min-height: var(--app-height) !important;
+}
+
+html.keyboard-open .app-shell.v23-shell {
+  min-height: var(--app-height) !important;
+  height: var(--app-height) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 20px) !important;
+}
+
+html.keyboard-open .v23-header,
+html.keyboard-open .v23-hero,
+html.keyboard-open .v23-player-card {
+  flex-shrink: 0 !important;
+}
+
+html.keyboard-open .v23-player-list {
+  flex: 0 0 auto !important;
+  grid-template-rows: none !important;
+  grid-auto-rows: minmax(108px, auto) !important;
+  overflow: visible !important;
+}
+
+html.keyboard-open .v23-player-card {
+  min-height: 108px !important;
+}
+
+html.keyboard-open .bottom-controls {
+  display: none !important;
+}
+
+.v23-player-list {
+  min-height: 0;
+}
+
+.v23-player-card {
+  flex-shrink: 0;
+}
