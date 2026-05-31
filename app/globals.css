@@ -2879,11 +2879,11 @@ html.keyboard-open .bottom-controls {
 
 @media (max-width: 430px) {
   .v23-hero { min-height: 120px; }
-  .v23-leader-name { font-size: 50px; }
-  .v23-hero-score strong { font-size: 82px; }
-  .v23-player-name { font-size: 34px; }
-  .v23-player-score { font-size: 62px; }
-  .v23-score-button { min-height: 34px; font-size: 22px; }
+  .v23-leader-name { font-size: 28px; }
+  .v23-hero-score strong { font-size: 36px; }
+  .v23-player-name { font-size: 28px; }
+  .v23-player-score { font-size: 28px; }
+  .v23-score-button { min-height: 28px; font-size: 22px; }
 }
 
 
