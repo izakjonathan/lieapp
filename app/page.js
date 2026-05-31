@@ -1,12 +1,11 @@
-
-function normalizePlayerName(name){
-  const trimmed = (name || "").trim();
-  return trimmed.toLowerCase() === "tom" ? "Gaylord McFuck" : trimmed;
-}
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+function normalizePlayerName(name) {
+  const trimmed = String(name || "").trim();
+  return trimmed.toLowerCase() === "tom" ? "Gaylord McFuck" : trimmed;
+}
+
 
 const STORAGE_KEY = "scoreboard-active-game";
 const LEGACY_STORAGE_KEY = "lie-ledger-active-game";
@@ -247,7 +246,7 @@ export default function Home() {
       setDraftNames((current) => ({ ...current, [playerId]: value }));
       window.clearTimeout(saveTimers.current[playerId]);
       saveTimers.current[playerId] = window.setTimeout(() => {
-        const clean = value.trim();
+        const clean = normalizePlayerName(value);
         if (clean) {
           sendAction({ type: "renamePlayer", playerId, name: clean }, "Saving name…");
         }
@@ -260,7 +259,7 @@ export default function Home() {
     (playerId) => {
       window.clearTimeout(saveTimers.current[playerId]);
       if (editingNameRef.current === playerId) editingNameRef.current = "";
-      const clean = String(draftNames[playerId] || "").trim();
+      const clean = normalizePlayerName(draftNames[playerId]);
       if (clean) sendAction({ type: "renamePlayer", playerId, name: clean }, "Saving name…");
       else syncDraftNames(game, { preserveActive: false });
     },
