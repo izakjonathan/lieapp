@@ -382,10 +382,8 @@ export default function Home() {
         <div className="v23-hero-main">
           <span className="v23-kicker">Scoreboard</span>
           <strong className="v23-leader-name">{stats.leaderName}</strong>
-          
         </div>
         <div className="v23-hero-score" aria-label={`${stats.leaderScore} ${stats.leaderScore === 1 ? "lie" : "lies"}`}>
-          
           <strong>{stats.leaderScore}</strong>
         </div>
       </section>
@@ -422,7 +420,6 @@ export default function Home() {
                   disabled={!game}
                   aria-label={`Name for ${player.name}`}
                 />
-                {isLeader ? <span className="v23-mini-trophy" aria-label="Current leader">🏆</span> : null}
               </div>
 
               <strong className="v23-player-score" key={`${player.id}-${player.score}-${lastChange.stamp}`}>{player.score}</strong>
