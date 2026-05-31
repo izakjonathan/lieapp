@@ -380,7 +380,7 @@ export default function Home() {
 
       <section className={`v23-hero glass-panel${stats.leaderId ? " has-leader" : ""}`} aria-label="Scoreboard leader">
         <div className="v23-hero-main">
-          <span className="v23-kicker">Scoreboard</span>
+          <span className="v23-kicker"></span>
           <strong className="v23-leader-name">{stats.leaderName}</strong>
         </div>
         <div className="v23-hero-score" aria-label={`${stats.leaderScore} ${stats.leaderScore === 1 ? "lie" : "lies"}`}>

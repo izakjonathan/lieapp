@@ -2885,3 +2885,12 @@ html.keyboard-open .bottom-controls {
   .v23-player-score { font-size: 62px; }
   .v23-score-button { min-height: 34px; font-size: 22px; }
 }
+
+
+/* v27 polish */
+.v23-kicker{display:none!important;}
+.v23-hero-score strong{font-size:clamp(5rem,14vw,7rem)!important;}
+.v23-player-score,.score-value{transform:translateX(-12px);}
+.v23-delta-btn,.v23-controls button{padding:.55rem 1rem!important;min-height:42px!important;}
+.v23-player-card{min-height:110px!important;}
+.bottom-toolbar,.toolbar{height:52px!important;}
